@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as publicLoginRouteImport } from './routes/(public)/login'
 import { Route as appDashboardRouteImport } from './routes/(app)/dashboard'
+import { Route as appImportRouteImport } from './routes/(app)/import'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
 
 const publicIndexRoute = publicIndexRouteImport.update({
@@ -29,6 +30,11 @@ const appDashboardRoute = appDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const appImportRoute = appImportRouteImport.update({
+  id: '/(app)/import',
+  path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const appLayoutRoute = appLayoutRouteImport.update({
   id: '/(app)/_layout',
   getParentRoute: () => rootRouteImport,
@@ -36,11 +42,13 @@ const appLayoutRoute = appLayoutRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof appDashboardRoute
+  '/import': typeof appImportRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
 }
 export interface FileRoutesByTo {
   '/dashboard': typeof appDashboardRoute
+  '/import': typeof appImportRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
 }
@@ -48,18 +56,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(app)/_layout': typeof appLayoutRoute
   '/(app)/dashboard': typeof appDashboardRoute
+  '/(app)/import': typeof appImportRoute
   '/(public)/login': typeof publicLoginRoute
   '/(public)/': typeof publicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/login' | '/'
+  fullPaths: '/dashboard' | '/import' | '/login' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard' | '/login' | '/'
+  to: '/dashboard' | '/import' | '/login' | '/'
   id:
     | '__root__'
     | '/(app)/_layout'
     | '/(app)/dashboard'
+    | '/(app)/import'
     | '/(public)/login'
     | '/(public)/'
   fileRoutesById: FileRoutesById
@@ -67,6 +77,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   appLayoutRoute: typeof appLayoutRoute
   appDashboardRoute: typeof appDashboardRoute
+  appImportRoute: typeof appImportRoute
   publicLoginRoute: typeof publicLoginRoute
   publicIndexRoute: typeof publicIndexRoute
 }
@@ -94,6 +105,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(app)/import': {
+      id: '/(app)/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof appImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(app)/_layout': {
       id: '/(app)/_layout'
       path: ''
@@ -107,6 +125,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   appLayoutRoute: appLayoutRoute,
   appDashboardRoute: appDashboardRoute,
+  appImportRoute: appImportRoute,
   publicLoginRoute: publicLoginRoute,
   publicIndexRoute: publicIndexRoute,
 }
