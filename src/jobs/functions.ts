@@ -1,5 +1,6 @@
 import { cron } from 'inngest'
 import { inngest } from './client'
+import { hlWalletPullFn } from './ingestion'
 
 const heartbeat = inngest.createFunction(
   {
@@ -12,4 +13,4 @@ const heartbeat = inngest.createFunction(
   },
 )
 
-export const functions = [heartbeat]
+export const functions = [heartbeat, hlWalletPullFn]
