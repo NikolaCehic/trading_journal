@@ -5,7 +5,8 @@
       "Bash(pnpm add *)",
       "Bash(pnpm dlx *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(pnpm lint *)"
     ]
   }
 }
