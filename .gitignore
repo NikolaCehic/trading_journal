@@ -1,0 +1,25 @@
+# deps
+node_modules
+.pnpm-store
+
+# builds
+.output
+.vinxi
+.nitro
+dist
+
+# env
+.env
+.env.*
+!.env.example
+
+# editors
+.vscode
+.idea
+.DS_Store
+
+# db
+*.sqlite
+
+# logs
+*.log
