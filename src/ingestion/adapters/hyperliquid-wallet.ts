@@ -3,7 +3,6 @@ import type { CanonicalFill } from '~/domain/fill'
 import type { ValidationReport } from '~/domain/import'
 
 const HL_API = 'https://api.hyperliquid.xyz/info'
-const PAGE_SIZE_MS = 7 * 24 * 60 * 60 * 1000  // 1 week per page
 const RATE_LIMIT_DELAY_MS = 1100
 const MAX_RETRIES = 4
 
