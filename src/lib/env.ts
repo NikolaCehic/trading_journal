@@ -1,0 +1,43 @@
+import { createEnv } from '@t3-oss/env-core'
+import { z } from 'zod'
+
+export const env = createEnv({
+  server: {
+    DATABASE_URL: z.string().url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_URL: z.string().url(),
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
+    INNGEST_EVENT_KEY: z.string().min(1).optional(),
+    INNGEST_SIGNING_KEY: z.string().min(1).optional(),
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    SENTRY_DSN: z.string().url().optional(),
+    R2_ACCOUNT_ID: z.string().min(1).optional(),
+    R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+    R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    R2_BUCKET: z.string().min(1).optional(),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  },
+  clientPrefix: 'VITE_',
+  client: {
+    VITE_APP_URL: z.string().url(),
+  },
+  runtimeEnv: {
+    DATABASE_URL: process.env['DATABASE_URL'],
+    BETTER_AUTH_SECRET: process.env['BETTER_AUTH_SECRET'],
+    BETTER_AUTH_URL: process.env['BETTER_AUTH_URL'],
+    GOOGLE_CLIENT_ID: process.env['GOOGLE_CLIENT_ID'],
+    GOOGLE_CLIENT_SECRET: process.env['GOOGLE_CLIENT_SECRET'],
+    INNGEST_EVENT_KEY: process.env['INNGEST_EVENT_KEY'],
+    INNGEST_SIGNING_KEY: process.env['INNGEST_SIGNING_KEY'],
+    ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'],
+    SENTRY_DSN: process.env['SENTRY_DSN'],
+    R2_ACCOUNT_ID: process.env['R2_ACCOUNT_ID'],
+    R2_ACCESS_KEY_ID: process.env['R2_ACCESS_KEY_ID'],
+    R2_SECRET_ACCESS_KEY: process.env['R2_SECRET_ACCESS_KEY'],
+    R2_BUCKET: process.env['R2_BUCKET'],
+    NODE_ENV: process.env['NODE_ENV'],
+    VITE_APP_URL: process.env['VITE_APP_URL'],
+  },
+  emptyStringAsUndefined: true,
+})
