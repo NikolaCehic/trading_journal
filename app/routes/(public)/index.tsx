@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Button } from '~/components/ui/button'
 
 export const Route = createFileRoute('/(public)/')({
   component: LandingPage,
@@ -11,9 +12,10 @@ function LandingPage() {
       <p className="mt-4 text-neutral-400">
         A trading journal that coaches you on your own data.
       </p>
-      <p className="mt-8 text-sm text-neutral-500">
-        Coming soon — Phase 0 foundation in progress.
-      </p>
+      <div className="mt-8 flex gap-3">
+        <Button className="bg-brand text-white hover:bg-brand-700">Try the demo</Button>
+        <Button variant="outline">Sign in with Google</Button>
+      </div>
     </main>
   )
 }

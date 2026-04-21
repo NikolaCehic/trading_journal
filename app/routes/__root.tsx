@@ -1,3 +1,4 @@
+import '~/styles/globals.css'
 import { createRootRoute, Outlet, ScrollRestoration } from '@tanstack/react-router'
 import { Meta, Scripts } from '@tanstack/start'
 
