@@ -1,5 +1,8 @@
 import '~/styles/globals.css'
+import { initSentryServer } from '~/lib/sentry'
 import { createRootRoute, Outlet, ScrollRestoration } from '@tanstack/react-router'
+
+initSentryServer()
 import { Meta, Scripts } from '@tanstack/start'
 
 export const Route = createRootRoute({
