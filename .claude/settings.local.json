@@ -6,7 +6,10 @@
       "Bash(pnpm dlx *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(pnpm lint *)"
+      "Bash(pnpm lint *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(node *)",
+      "Bash(find /Users/nikolacehic/Desktop/trade_journal/node_modules/.pnpm/@tanstack+react-start-client*/node_modules/@tanstack/react-start-client -name \"index.d.ts\")"
     ]
   }
 }
