@@ -15,6 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "ignoreDeprecations": "6.0",
+    "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],

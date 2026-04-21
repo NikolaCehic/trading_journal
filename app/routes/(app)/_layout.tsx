@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/start'
+import { createServerFn } from '@tanstack/start-client-core'
 import { auth } from '~/auth/server'
 import { getWebRequest } from 'vinxi/http'
 

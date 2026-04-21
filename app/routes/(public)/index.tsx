@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Button } from '~/components/ui/button'
 
 export const Route = createFileRoute('/(public)/')({
@@ -6,6 +6,7 @@ export const Route = createFileRoute('/(public)/')({
 })
 
 function LandingPage() {
+  const navigate = useNavigate()
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 text-center">
       <h1 className="text-4xl font-semibold">Trade Journal</h1>
@@ -20,8 +21,8 @@ function LandingPage() {
         >
           Try the demo
         </Button>
-        <Button variant="outline" asChild>
-          <Link to="/login">Sign in with Google</Link>
+        <Button variant="outline" onClick={() => void navigate({ to: '/login' })}>
+          Sign in with Google
         </Button>
       </div>
     </main>

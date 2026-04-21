@@ -9,7 +9,15 @@
       "Bash(pnpm lint *)",
       "Bash(pnpm typecheck *)",
       "Bash(node *)",
-      "Bash(find /Users/nikolacehic/Desktop/trade_journal/node_modules/.pnpm/@tanstack+react-start-client*/node_modules/@tanstack/react-start-client -name \"index.d.ts\")"
+      "Bash(find /Users/nikolacehic/Desktop/trade_journal/node_modules/.pnpm/@tanstack+react-start-client*/node_modules/@tanstack/react-start-client -name \"index.d.ts\")",
+      "Bash(pnpm list *)",
+      "Bash(find /Users/nikolacehic/Desktop/trade_journal/node_modules/.pnpm/inngest@4.2.4*/node_modules/inngest/ -name \"*.d.ts\")",
+      "Bash(pnpm dev *)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(DATABASE_URL=postgresql://x:x@localhost/x BETTER_AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx BETTER_AUTH_URL=http://localhost:3000 GOOGLE_CLIENT_ID=x GOOGLE_CLIENT_SECRET=x VITE_APP_URL=http://localhost:3000 NODE_ENV=test pnpm test *)",
+      "Bash(git -C /Users/nikolacehic/Desktop/trade_journal add .)",
+      "Bash(git -C /Users/nikolacehic/Desktop/trade_journal status)"
     ]
   }
 }
