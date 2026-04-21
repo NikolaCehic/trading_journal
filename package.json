@@ -16,5 +16,21 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "inngest:dev": "inngest-cli dev"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.99.2",
+    "@tanstack/react-router": "^1.168.23",
+    "@tanstack/start": "^1.120.20",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "vinxi": "^0.5.11"
+  },
+  "devDependencies": {
+    "@tanstack/router-devtools": "^1.166.13",
+    "@tanstack/router-plugin": "^1.167.22",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3",
+    "vite-tsconfig-paths": "^6.1.1"
   }
 }
