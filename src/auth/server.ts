@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from '~/db/client'
 import { env } from '~/lib/env'
+import { ensureDefaultMistakeTags } from '~/server/seedJournal'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'pg' }),
@@ -25,6 +26,19 @@ export const auth = betterAuth({
         required: true,
         defaultValue: false,
         input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            await ensureDefaultMistakeTags(db, user.id)
+          } catch (err) {
+            console.warn('seed mistake tags failed', { userId: user.id, err: String(err) })
+          }
+        },
       },
     },
   },
