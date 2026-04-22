@@ -14,5 +14,5 @@ export type CanonicalFill = {
   feeCurrency: string
   executedAt: Date
   externalId: string
-  normalizerHint?: Record<string, unknown>
+  normalizerHint?: Record<string, unknown> | null
 }
