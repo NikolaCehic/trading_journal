@@ -8,7 +8,12 @@ export default defineConfig(({ mode }) => {
     plugins: [tsConfigPaths()],
     test: {
       environment: 'node',
-      include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+      include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+      environmentMatchGlobs: [
+        ['tests/unit/components/**/*.test.tsx', 'jsdom'],
+        ['tests/unit/components/**/*.tsx', 'jsdom'],
+      ],
+      setupFiles: ['tests/setup.ts'],
       env: {
         ...env,
         NODE_ENV: 'test',

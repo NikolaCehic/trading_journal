@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getDashboardBundle } from '~/server/dashboard'
 import { useDashboardFilters } from '~/hooks/useDashboardFilters'
 import { ControlsRow } from '~/components/dashboard/ControlsRow'
+import { KpiTilesRow } from '~/components/dashboard/KpiTilesRow'
 import { serializeFilters } from '~/lib/filters'
 import type { DashboardBundle } from '~/domain/dashboard'
 
@@ -59,12 +60,12 @@ function DashboardSkeleton() {
   )
 }
 
-function DashboardContent({ bundle: _bundle }: { bundle: DashboardBundle }) {
+function DashboardContent({ bundle }: { bundle: DashboardBundle }) {
   // Populated by Tasks 10-13.
   return (
     <div className="grid grid-cols-[1fr_320px] gap-6">
       <div className="flex flex-col gap-6">
-        {/* KPI tiles go here (Task 10) */}
+        <KpiTilesRow bundle={bundle} />
         {/* Equity curve (Task 11) */}
         {/* Heatmap + Asset breakdown (Tasks 12-13) */}
       </div>
