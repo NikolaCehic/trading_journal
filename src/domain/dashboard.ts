@@ -1,8 +1,23 @@
 import type { DailyMetricValue, AssetMetricValue, SessionMetricValue, SummaryRollupValue } from './metrics'
-import type { Finding } from './finding'
+import type { FindingSeverity, DetectorId } from './finding'
 
 export type TimeRange = '7d' | '30d' | '90d' | 'ytd' | 'all' | 'custom'
 export type InstrumentFilter = 'all' | 'spot' | 'perp'
+
+/** Serialization-safe finding shape used in DashboardBundle (evidence typed as JSON object). */
+export type DashboardFinding = {
+  id: string
+  userId: string
+  detectorId: DetectorId
+  severity: FindingSeverity
+  title: string
+  bodyMarkdown: string
+  evidence: Record<string, string | number | boolean | null | Array<string | number | boolean | null>>
+  referencedPositionIds: string[]
+  periodStart: Date | null
+  periodEnd: Date | null
+  derivationVersion: number
+}
 
 export type DashboardFilters = {
   timeRange: TimeRange
@@ -33,7 +48,7 @@ export type DashboardBundle = {
   heatmap: Array<{ hourOfDayUtc: number; dayOfWeekUtc: number; tradeCount: number; expectancy: number }>
   assetBreakdown: AssetMetricValue[]          // sorted by realizedPnl desc
   sessionBreakdown: SessionMetricValue[]
-  topFindings: Finding[]                      // top 5 by severity
+  topFindings: DashboardFinding[]                    // top 5 by severity
   meta: {
     totalFillCount: number
     totalPositionCount: number
