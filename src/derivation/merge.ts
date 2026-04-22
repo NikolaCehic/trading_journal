@@ -76,7 +76,7 @@ function buildOpen(userId: string, f: Fill, side: PositionSide, version: number)
 }
 
 function finalize(b: Builder, closedAt: Date | null): Position {
-  const entryAvgPrice = b.totalOpenSize > 0 ? b.weightedEntrySum / b.totalOpenSize : 0
+  const entryAvgPrice = b.currentAvgEntry
   const exitAvgPrice = b.totalExitSize > 0 ? b.weightedExitSum / b.totalExitSize : null
   const firstFillId = b.fills[0]?.fillId ?? 'unknown'
   return {
@@ -161,10 +161,13 @@ function mergeOne(userId: string, sorted: Fill[], version: number): Position[] {
     if (effective.kind === 'open') {
       // Side-flip: close existing, open new opposite
       if (effective.side && effective.side !== b.side) {
-        b.fills.push({ fillId: f.id, role: 'close', price, size, fee, executedAt: f.executedAt })
-        b.totalFees += fee
         // close out remaining netSize against this fill
         const closeSize = Math.min(b.netSize, size)
+        const closeRatio = size > 0 ? closeSize / size : 0
+        const closeFee = fee * closeRatio
+        const remainFee = fee - closeFee
+        b.fills.push({ fillId: f.id, role: 'close', price, size: closeSize, fee: closeFee, executedAt: f.executedAt })
+        b.totalFees += closeFee
         b.weightedExitSum += price * closeSize
         b.totalExitSize += closeSize
         b.realizedPnl += pnlFor(b.side, b.currentAvgEntry, price, closeSize)
@@ -172,7 +175,7 @@ function mergeOne(userId: string, sorted: Fill[], version: number): Position[] {
         // remainder opens opposite-side position
         const remainder = size - closeSize
         if (remainder > 0) {
-          const flip: Fill = { ...f, size: String(remainder) }
+          const flip: Fill = { ...f, size: String(remainder), fee: String(remainFee) }
           b = buildOpen(userId, flip, effective.side, version)
         } else {
           b = null
@@ -185,24 +188,26 @@ function mergeOne(userId: string, sorted: Fill[], version: number): Position[] {
 
     if (effective.kind === 'add') {
       b.fills.push({ fillId: f.id, role: 'add', price, size, fee, executedAt: f.executedAt })
+      b.currentAvgEntry = (b.currentAvgEntry * b.netSize + price * size) / (b.netSize + size)
       b.netSize += size
       b.weightedEntrySum += price * size
       b.totalOpenSize += size
       b.totalFees += fee
-      b.currentAvgEntry = b.weightedEntrySum / b.totalOpenSize
       b.maxNotionalUsd = Math.max(b.maxNotionalUsd, b.currentAvgEntry * b.netSize)
       continue
     }
 
     if (effective.kind === 'reduce' || effective.kind === 'close' || effective.kind === 'liq') {
       const closeSize = Math.min(b.netSize, size)
+      const closeRatio = size > 0 ? closeSize / size : 0
+      const closeFee = fee * closeRatio
       const role: PositionRole = closeSize >= b.netSize - 1e-12 ? 'close' : 'reduce'
-      b.fills.push({ fillId: f.id, role, price, size: closeSize, fee, executedAt: f.executedAt })
-      b.totalFees += fee
+      b.fills.push({ fillId: f.id, role, price, size: closeSize, fee: closeFee, executedAt: f.executedAt })
+      b.totalFees += closeFee
+      b.realizedPnl += pnlFor(b.side, b.currentAvgEntry, price, closeSize)
       b.netSize -= closeSize
       b.weightedExitSum += price * closeSize
       b.totalExitSize += closeSize
-      b.realizedPnl += pnlFor(b.side, b.currentAvgEntry, price, closeSize)
       if (effective.kind === 'liq') b.wasLiquidated = true
       if (b.netSize <= 1e-12) {
         out.push(finalize(b, f.executedAt))
