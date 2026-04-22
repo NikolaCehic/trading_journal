@@ -15,11 +15,17 @@ import { Route as appDashboardRouteImport } from './routes/(app)/dashboard'
 import { Route as appImportRouteImport } from './routes/(app)/import'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
 import { Route as appTradesIndexRouteImport } from './routes/(app)/trades/index'
+import { Route as appTradesPositionIdRouteImport } from './routes/(app)/trades/$positionId'
 import { Route as appDigestIndexRouteImport } from './routes/(app)/digest/index'
 
 const appTradesIndexRoute = appTradesIndexRouteImport.update({
   id: '/(app)/trades/',
   path: '/trades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const appTradesPositionIdRoute = appTradesPositionIdRouteImport.update({
+  id: '/(app)/trades/$positionId',
+  path: '/trades/$positionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const appDigestIndexRoute = appDigestIndexRouteImport.update({
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof appDashboardRoute
   '/import': typeof appImportRoute
   '/trades': typeof appTradesIndexRoute
+  '/trades/$positionId': typeof appTradesPositionIdRoute
   '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof appDashboardRoute
   '/import': typeof appImportRoute
   '/trades': typeof appTradesIndexRoute
+  '/trades/$positionId': typeof appTradesPositionIdRoute
   '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
@@ -74,21 +82,23 @@ export interface FileRoutesById {
   '/(app)/dashboard': typeof appDashboardRoute
   '/(app)/import': typeof appImportRoute
   '/(app)/trades/': typeof appTradesIndexRoute
+  '/(app)/trades/$positionId': typeof appTradesPositionIdRoute
   '/(app)/digest/': typeof appDigestIndexRoute
   '/(public)/login': typeof publicLoginRoute
   '/(public)/': typeof publicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/import' | '/trades' | '/digest' | '/login' | '/'
+  fullPaths: '/dashboard' | '/import' | '/trades' | '/trades/$positionId' | '/digest' | '/login' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard' | '/import' | '/trades' | '/digest' | '/login' | '/'
+  to: '/dashboard' | '/import' | '/trades' | '/trades/$positionId' | '/digest' | '/login' | '/'
   id:
     | '__root__'
     | '/(app)/_layout'
     | '/(app)/dashboard'
     | '/(app)/import'
     | '/(app)/trades/'
+    | '/(app)/trades/$positionId'
     | '/(app)/digest/'
     | '/(public)/login'
     | '/(public)/'
@@ -99,6 +109,7 @@ export interface RootRouteChildren {
   appDashboardRoute: typeof appDashboardRoute
   appImportRoute: typeof appImportRoute
   appTradesIndexRoute: typeof appTradesIndexRoute
+  appTradesPositionIdRoute: typeof appTradesPositionIdRoute
   appDigestIndexRoute: typeof appDigestIndexRoute
   publicLoginRoute: typeof publicLoginRoute
   publicIndexRoute: typeof publicIndexRoute
@@ -148,6 +159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appTradesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(app)/trades/$positionId': {
+      id: '/(app)/trades/$positionId'
+      path: '/trades/$positionId'
+      fullPath: '/trades/$positionId'
+      preLoaderRoute: typeof appTradesPositionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(app)/digest/': {
       id: '/(app)/digest/'
       path: '/digest'
@@ -163,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   appDashboardRoute: appDashboardRoute,
   appImportRoute: appImportRoute,
   appTradesIndexRoute: appTradesIndexRoute,
+  appTradesPositionIdRoute: appTradesPositionIdRoute,
   appDigestIndexRoute: appDigestIndexRoute,
   publicLoginRoute: publicLoginRoute,
   publicIndexRoute: publicIndexRoute,
