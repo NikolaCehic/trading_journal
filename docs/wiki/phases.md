@@ -50,47 +50,42 @@ One entry per phase. Updated at the end of each phase with what was built, desig
 
 ---
 
-## Phase 2 — Derivation engine · **In progress** (plan drafted, execution underway)
+## Phase 2 — Derivation engine · **Shipped**
 
 **Plan:** `docs/superpowers/plans/2026-04-22-phase-2-derivation.md`
 
-**Scope** (per spec §11 Phase 2)
-- Position merging with golden fixtures
-- Metrics tables (daily / asset / session / summary)
-- All 11 deterministic detectors with unit + golden-fixture tests
-- `derivation_version` infrastructure + admin `rederive` CLI
-- Inngest handler on `ingestion/complete`
+**Shipped** (23 commits from `3e3d443` through `15205e3`)
+- Derivation DB schema — 7 tables (`position`, `position_fill`, `daily_metric`, `asset_metric`, `session_metric`, `summary_rollup`, `finding`) + 3 enums, migrations `0001_majestic_miracleman.sql` + `0002_large_golden_guardian.sql` (not yet pushed to Neon)
+- Domain types: `Position`, `PositionFillRef`, metric values, `Finding<TEvidence>` + 11 strongly-typed evidence schemas
+- Position merger (`src/derivation/merge.ts`) with TDD: perp lifecycle, adds/reduces with weighted avg entry, partial closes, shorts, liquidation, still-open, side-flip, spot FIFO — 11 passing unit tests
+- Metrics modules: `daily`, `asset`, `session`, `summary` + shared stats helpers (`mean`, `stddev`, `variance`, `median`, `percentile`, `expectancy`) — 4 passing unit tests
+- All 11 detectors implemented with positive fixture + unit tests each:
+  - `revenge_trading`, `oversized_positions`, `loss_of_discipline_windows`, `position_sizing_instability`, `cut_winners_ride_losers`, `overtrading_after_losses`, `fee_drag`, `scaling_into_losers`, `short_hold_scalping`, `symbol_underperformance`, `leverage_creep`
+- Detector registry + runner (`src/derivation/runner.ts`) + `persistDerivation` (delete-then-insert, idempotent per `(userId, version)`)
+- Inngest function `derive-on-ingestion-complete` subscribed to `ingestion/complete`, plus `rederive` function for version-bump workflows
+- Admin CLI `pnpm rederive --user=<id> --version=N`
+- Golden-fixture integration matrix — 12 persona CSVs cover `steady-discipline` (zero findings) + positive case for every detector; all green on first run
 
-**Progress log** (to be filled as tasks complete)
-- [ ] Task 0 — version + detector interface scaffolds
-- [ ] Task 1 — derivation DB schema (7 tables, 3 enums, 1 migration)
-- [ ] Task 2 — Position + Finding domain types + 11 evidence schemas
-- [ ] Task 3 — fixture loader + `steady-discipline.csv`
-- [ ] Task 4 — position merger (perp + spot + side-flip, TDD)
-- [ ] Task 5 — metrics (daily / asset / session / summary) + shared stats helpers
-- [ ] Task 6 — detector `revenge_trading`
-- [ ] Task 7 — detector `oversized_positions`
-- [ ] Task 8 — detector `loss_of_discipline_windows`
-- [ ] Task 9 — detector `position_sizing_instability`
-- [ ] Task 10 — detector `cut_winners_ride_losers`
-- [ ] Task 11 — detector `overtrading_after_losses`
-- [ ] Task 12 — detector `fee_drag`
-- [ ] Task 13 — detector `scaling_into_losers`
-- [ ] Task 14 — detector `short_hold_scalping`
-- [ ] Task 15 — detector `symbol_underperformance`
-- [ ] Task 16 — detector `leverage_creep`
-- [ ] Task 17 — detector registry + runner + persist
-- [ ] Task 18 — Inngest `derive-on-ingestion-complete` + `rederive`
-- [ ] Task 19 — admin `rederive` CLI
-- [ ] Task 20 — golden-fixture integration matrix (all 12 personas)
+**Test state after Phase 2:** 76 passing / 4 failing (pre-existing Phase-0 smoke tests failing on empty env vars, unrelated to Phase 2) / 2 skipped (real-DB integration). `pnpm typecheck` clean.
 
-**Key design choices recorded up-front** (may evolve)
-- `DERIVATION_VERSION` is a single constant in `src/derivation/version.ts` — bumped only when detector/merger/metric logic changes observably.
-- `Position.maxNotionalUsd` is used as a **proxy** for leverage in `leverage_creep`. HL CSV does not expose account margin, so explicit leverage is not available. When wallet-API data is richer (future work), the detector can tighten without changing its interface.
-- Spot position merging uses FIFO lots; perps use HL `dir` hints when present and infer from `side + netSize` otherwise.
-- Every detector emits typed `evidence` JSONB matching a Zod/TS schema in `src/domain/finding.ts`. This is the input bundle Claude will eventually consume in Phase 4.
-- `persistDerivation` is delete-then-insert scoped to `(userId, derivationVersion)` — re-running at the same version is idempotent.
-- Fixtures are stored as HL CSV so they exercise the same ingestion pipeline as production imports.
+**Key design decisions / gotchas recorded during implementation**
+- `DERIVATION_VERSION = 1` — single source of truth in `src/derivation/version.ts`. Bump when detector/merger/metric logic changes observably.
+- `Position.maxNotionalUsd` is used as a **proxy for leverage** in `leverage_creep`. HL CSV does not expose account margin, so explicit leverage isn't available for CSV imports. The detector works without tightening; future wallet-API data can replace this with real leverage without changing the detector interface.
+- Merger bug-fix landed in commit `dd0c698`:
+  - Critical: `currentAvgEntry` computed from `netSize` (not from the original `weightedEntrySum/totalOpenSize` ratio) so reduce-then-add sequences get the correct weighted entry
+  - Important: fee pro-rating `closeFee = fee × (closeSize/size)` on side-flip and reduce-overshoot paths so a single fill's fee isn't double-counted across two positions
+- `position_fill_position_id_idx` added in commit `5c257dc` to cover the "all fills for this position" lookup the persist layer issues
+- `position_user_id_idx` removed (redundant with `position_user_symbol_idx`'s leading column)
+- `normalizerHint` widened to `Record<string, unknown> | null` to match how the orchestrator persists the column for spot fills
+- Plan's initial `position_sizing_instability` guard `if (vp === 0) return []` was inverted — when prior window is perfectly stable and recent has variance, that's the clearest possible "instability" signal, so we cap the ratio at 999 rather than bailing
+- Plan's initial `revenge_trading` median fallback order (computed-first, summary-fallback) was flipped to trust the summary's precomputed median; both paths are equal in production since summary is computed by `computeSummaryRollup` from the same positions
+- `scripts/rederive.ts` requires `--env-file=.env.local` and (because `env.ts` validates every var eagerly at import time) inline `GOOGLE_CLIENT_ID=cli GOOGLE_CLIENT_SECRET=cli` placeholders so the CLI boots without real Google OAuth secrets. Ugly but contained. A cleaner fix is a CLI-specific env schema; left as follow-up.
+- `tsx` was promoted from transitive to direct devDependency in this phase to run the rederive script (pnpm-lock.yaml touched for that reason)
 
 **Deferred from Phase 2**
-- Filled in at phase close.
+- Apply `drizzle/0001_*.sql` + `drizzle/0002_*.sql` to the live Neon DB (user runs `pnpm drizzle-kit push` manually)
+- Backfill `env.ts` with a CLI-friendly env variant so rederive doesn't need inline `GOOGLE_CLIENT_ID` overrides
+- Phase-0 smoke tests (`tests/smoke/phase-0.test.ts`) fail against the current `.env.local` with empty OAuth vars — this was true before Phase 2 started; flagged for whoever owns the smoke test suite
+- No real leverage data flows yet — `leverage_creep` fires on notional size. Tightening this is a v2 item once HL wallet API delivers position/margin snapshots.
+
+---
