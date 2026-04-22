@@ -1,16 +1,11 @@
 import { cron } from 'inngest'
 import { inngest } from './client'
 import { hlWalletPullFn } from './ingestion'
+import { deriveOnIngestionCompleteFn, rederiveFn } from './derivation'
 
 const heartbeat = inngest.createFunction(
-  {
-    id: 'heartbeat',
-    name: 'Heartbeat',
-    triggers: [cron('0 * * * *')],
-  },
-  async ({ step }) => {
-    await step.run('ping', () => ({ ok: true, ts: new Date().toISOString() }))
-  },
+  { id: 'heartbeat', name: 'Heartbeat', triggers: [cron('0 * * * *')] },
+  async ({ step }) => { await step.run('ping', () => ({ ok: true, ts: new Date().toISOString() })) },
 )
 
-export const functions = [heartbeat, hlWalletPullFn]
+export const functions = [heartbeat, hlWalletPullFn, deriveOnIngestionCompleteFn, rederiveFn]

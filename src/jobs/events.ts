@@ -26,3 +26,18 @@ export async function sendIngestionComplete(payload: IngestionCompletePayload['d
 export async function sendHLWalletPull(payload: HLWalletPullPayload['data']) {
   await inngest.send({ name: 'ingestion/hl-wallet-pull', data: payload })
 }
+
+export type DerivationCompletePayload = {
+  name: 'derivation/complete'
+  data: { userId: string; derivationVersion: number; positionCount: number; findingCount: number }
+}
+export type DerivationRederivePayload = {
+  name: 'derivation/rederive'
+  data: { userId: string; derivationVersion: number }
+}
+export async function sendDerivationComplete(data: DerivationCompletePayload['data']) {
+  await inngest.send({ name: 'derivation/complete', data })
+}
+export async function sendDerivationRederive(data: DerivationRederivePayload['data']) {
+  await inngest.send({ name: 'derivation/rederive', data })
+}
