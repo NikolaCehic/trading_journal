@@ -14,7 +14,19 @@ import { Route as publicLoginRouteImport } from './routes/(public)/login'
 import { Route as appDashboardRouteImport } from './routes/(app)/dashboard'
 import { Route as appImportRouteImport } from './routes/(app)/import'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
+import { Route as appTradesIndexRouteImport } from './routes/(app)/trades/index'
+import { Route as appDigestIndexRouteImport } from './routes/(app)/digest/index'
 
+const appTradesIndexRoute = appTradesIndexRouteImport.update({
+  id: '/(app)/trades/',
+  path: '/trades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const appDigestIndexRoute = appDigestIndexRouteImport.update({
+  id: '/(app)/digest/',
+  path: '/digest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/(public)/',
   path: '/',
@@ -43,12 +55,16 @@ const appLayoutRoute = appLayoutRouteImport.update({
 export interface FileRoutesByFullPath {
   '/dashboard': typeof appDashboardRoute
   '/import': typeof appImportRoute
+  '/trades': typeof appTradesIndexRoute
+  '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
 }
 export interface FileRoutesByTo {
   '/dashboard': typeof appDashboardRoute
   '/import': typeof appImportRoute
+  '/trades': typeof appTradesIndexRoute
+  '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
   '/': typeof publicIndexRoute
 }
@@ -57,19 +73,23 @@ export interface FileRoutesById {
   '/(app)/_layout': typeof appLayoutRoute
   '/(app)/dashboard': typeof appDashboardRoute
   '/(app)/import': typeof appImportRoute
+  '/(app)/trades/': typeof appTradesIndexRoute
+  '/(app)/digest/': typeof appDigestIndexRoute
   '/(public)/login': typeof publicLoginRoute
   '/(public)/': typeof publicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/import' | '/login' | '/'
+  fullPaths: '/dashboard' | '/import' | '/trades' | '/digest' | '/login' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard' | '/import' | '/login' | '/'
+  to: '/dashboard' | '/import' | '/trades' | '/digest' | '/login' | '/'
   id:
     | '__root__'
     | '/(app)/_layout'
     | '/(app)/dashboard'
     | '/(app)/import'
+    | '/(app)/trades/'
+    | '/(app)/digest/'
     | '/(public)/login'
     | '/(public)/'
   fileRoutesById: FileRoutesById
@@ -78,6 +98,8 @@ export interface RootRouteChildren {
   appLayoutRoute: typeof appLayoutRoute
   appDashboardRoute: typeof appDashboardRoute
   appImportRoute: typeof appImportRoute
+  appTradesIndexRoute: typeof appTradesIndexRoute
+  appDigestIndexRoute: typeof appDigestIndexRoute
   publicLoginRoute: typeof publicLoginRoute
   publicIndexRoute: typeof publicIndexRoute
 }
@@ -119,6 +141,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(app)/trades/': {
+      id: '/(app)/trades/'
+      path: '/trades'
+      fullPath: '/trades'
+      preLoaderRoute: typeof appTradesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(app)/digest/': {
+      id: '/(app)/digest/'
+      path: '/digest'
+      fullPath: '/digest'
+      preLoaderRoute: typeof appDigestIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -126,6 +162,8 @@ const rootRouteChildren: RootRouteChildren = {
   appLayoutRoute: appLayoutRoute,
   appDashboardRoute: appDashboardRoute,
   appImportRoute: appImportRoute,
+  appTradesIndexRoute: appTradesIndexRoute,
+  appDigestIndexRoute: appDigestIndexRoute,
   publicLoginRoute: publicLoginRoute,
   publicIndexRoute: publicIndexRoute,
 }
