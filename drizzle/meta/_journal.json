@@ -22,6 +22,13 @@
       "when": 1776857327890,
       "tag": "0002_large_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776868333188,
+      "tag": "0003_special_nextwave",
+      "breakpoints": true
     }
   ]
 }
