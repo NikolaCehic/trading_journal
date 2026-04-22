@@ -4,6 +4,7 @@ import { getDashboardBundle } from '~/server/dashboard'
 import { useDashboardFilters } from '~/hooks/useDashboardFilters'
 import { ControlsRow } from '~/components/dashboard/ControlsRow'
 import { KpiTilesRow } from '~/components/dashboard/KpiTilesRow'
+import { EquityCurveCard } from '~/components/dashboard/EquityCurveCard'
 import { serializeFilters } from '~/lib/filters'
 import type { DashboardBundle } from '~/domain/dashboard'
 
@@ -66,6 +67,7 @@ function DashboardContent({ bundle }: { bundle: DashboardBundle }) {
     <div className="grid grid-cols-[1fr_320px] gap-6">
       <div className="flex flex-col gap-6">
         <KpiTilesRow bundle={bundle} />
+        <EquityCurveCard bundle={bundle} />
         {/* Equity curve (Task 11) */}
         {/* Heatmap + Asset breakdown (Tasks 12-13) */}
       </div>
