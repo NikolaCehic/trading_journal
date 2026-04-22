@@ -6,6 +6,8 @@ import { listTags } from '~/server/journal'
 import { TradesFilterBar, type TradesFilters } from '~/components/trades/TradesFilterBar'
 import { TradesTable } from '~/components/trades/TradesTable'
 import { BulkTagDialog } from '~/components/trades/BulkTagDialog'
+import { TableSkeleton } from '~/components/LoadingSkeleton'
+import { EmptyState } from '~/components/EmptyState'
 
 export const Route = createFileRoute('/(app)/trades/')({
   component: TradesPage,
@@ -107,9 +109,13 @@ function TradesPage() {
         {error
           ? <p className="p-6 text-sm text-pnl-loss">Failed to load trades.</p>
           : isLoading || !data
-            ? <p className="p-6 text-sm text-neutral-500">Loading trades…</p>
+            ? <TableSkeleton />
             : data.rows.length === 0
-              ? <p className="p-6 text-sm text-neutral-500">No trades match these filters.</p>
+              ? <EmptyState
+                  title="No trades match these filters."
+                  body="Try broadening the range or clearing filters."
+                  action={{ label: 'Import data', to: '/import' }}
+                />
               : <TradesTable
                   rows={data.rows}
                   selectedIds={selectedIds}

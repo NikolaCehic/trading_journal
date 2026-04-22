@@ -9,6 +9,7 @@ import { NotesTab } from '~/components/trades/NotesTab'
 import { TagsTab } from '~/components/trades/TagsTab'
 import { FindingsTab } from '~/components/trades/FindingsTab'
 import { CoachTabStub } from '~/components/trades/CoachTabStub'
+import { DetailSkeleton } from '~/components/LoadingSkeleton'
 
 export const Route = createFileRoute('/(app)/trades/$positionId')({
   component: TradeDetailPage,
@@ -22,7 +23,7 @@ function TradeDetailPage() {
     staleTime: 5 * 60_000,
   })
   if (error) return <p className="text-sm text-pnl-loss">Failed to load trade: {(error as Error).message}</p>
-  if (isLoading || !data) return <p className="text-sm text-neutral-500">Loading…</p>
+  if (isLoading || !data) return <DetailSkeleton />
 
   return (
     <div className="flex flex-col gap-6">
