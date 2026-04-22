@@ -90,52 +90,43 @@ One entry per phase. Updated at the end of each phase with what was built, desig
 
 ---
 
-## Phase 3 — Dashboard & Trade Views · **In progress** (plan drafted, execution pending)
+## Phase 3 — Dashboard & Trade Views · **Shipped**
 
 **Plan:** `docs/superpowers/plans/2026-04-23-phase-3-dashboard.md`
 
-**Scope** (per spec §11 Phase 3 + §9)
-- `/app/dashboard` — controls row (URL-persisted filters), 5 KPI tiles with sparkline, full-width equity curve, time-of-day hour strip, top-winner/loser asset bars, active-findings sidebar, stats footer
-- `/app/trades` — sticky filter bar (search + instrument + side + PnL), dense table with keyboard nav (`j/k/enter/x/slash`), bulk-tag dialog
-- `/app/trades/:positionId` — header + fills-timeline scatter + metric chips + Notes (markdown autosave) / Tags (setup + mistake + confidence + emotion) / Findings / Coach stub tabs
-- Journal layer — `trade_note`, `setup_tag`, `mistake_tag`, `position_tag`, `position_reflection` tables + 8 seeded starter mistake tags
-- Global shell polish — `<TopBar />`, derivation `<VersionBadge />`, focus-visible ring
-- Loading skeletons + contextual empty/error states across all three routes
+**Shipped** (22 commits from `ae40274` through `48a0813`)
+- **`/app/dashboard`** — controls row with URL-persisted time-range + instrument toggles, 5 KPI tiles (realized PnL sparkline, win rate, expectancy, trade count, max drawdown) with prior-period deltas, full-width equity curve area chart with drawdown shading, 24-column hour-of-day expectancy strip, top-winners/losers horizontal bar chart, active-findings sidebar, derivation-version footer with fill/position counts
+- **`/app/trades`** — sticky filter bar (search + instrument + side + PnL toggles), dense monospaced table with note/tag/liquidated indicators, keyboard nav (`/` focuses search, `j/k` move, `Enter` opens, `x`/`Space` toggles select), bulk-tag dialog
+- **`/app/trades/:positionId`** — position header (symbol + badges + PnL), metric chips row, Recharts fills-timeline scatter (role-colored), 4-tab scaffold: Notes (autosave + markdown preview), Tags (setup/mistake pickers + custom tag creation + confidence chips + emotion select + Save for reflection), Findings (detector cards), Coach stub (Phase 4 placeholder)
+- **Journal layer** — `trade_note`, `setup_tag`, `mistake_tag`, `position_tag`, `position_reflection` tables; 8 seeded starter mistake tags via Better Auth `databaseHooks.user.create.after`
+- **Global shell** — `<TopBar />` with brand logo + nav + `<VersionBadge />` showing `v{DERIVATION_VERSION}` + user email; main column tightened to `max-w-[1280px]`
+- **Loading / empty / focus polish** — `<TableSkeleton />`, `<DetailSkeleton />`, `<EmptyState />`, `:focus-visible` outline at brand orange; sonner `<Toaster />` mounted in root
 
-**Progress log** (to fill as tasks complete)
-- [ ] Task 0 — install recharts + markdown + shadcn UI components (12 new ui files)
-- [ ] Task 1 — journal DB schema + migration (5 tables, 2 enums, `drizzle/0003_*.sql`)
-- [ ] Task 2 — journal + dashboard domain types
-- [ ] Task 3 — default mistake-tag seeder wired to Better Auth sign-in (with fallback to lazy seed)
-- [ ] Task 4 — `getDashboardBundle` server fn + URL filter parse/serialize helpers
-- [ ] Task 5 — `getTradeList` server fn with filters + pagination
-- [ ] Task 6 — `getTradeDetail` server fn (position + fills + findings + journal)
-- [ ] Task 7 — journal mutation server fns (notes, tags, reflections, custom tags)
-- [ ] Task 8 — global shell: `<TopBar />`, `<VersionBadge />`, brand tailwind tokens
-- [ ] Task 9 — dashboard scaffold + controls row + URL-persisted filters
-- [ ] Task 10 — 5 KPI tiles with sparklines (+ `formatters.ts`)
-- [ ] Task 11 — full-width equity curve area chart
-- [ ] Task 12 — time-of-day expectancy strip (hour-only for v1; day-of-week deferred)
-- [ ] Task 13 — top-winners/losers asset bar chart + active-findings sidebar
-- [ ] Task 14 — trade list page (filter bar + dense table)
-- [ ] Task 15 — keyboard nav (`j/k/enter/x/slash`) + bulk-tag dialog
-- [ ] Task 16 — trade detail: header + metric chips + fills timeline + tab scaffolding
-- [ ] Task 17 — Notes tab (textarea + autosave + markdown preview with rehype-sanitize)
-- [ ] Task 18 — Tags tab (setup/mistake pickers, confidence, emotional state, tag creation)
-- [ ] Task 19 — Findings tab
-- [ ] Task 20 — loading skeletons + empty states + focus-visible ring
+**Test state after Phase 3:** 90 passing / 4 failing (still the pre-existing Phase-0 smoke tests failing on empty OAuth env vars) / 2 skipped (real-DB). `pnpm typecheck` clean. 14 new tests added across filter helpers, server validators, KPI tile component.
 
-**Key design decisions recorded up-front** (may evolve)
-- Presentation reads *only* derived rows — every dashboard/trade query hits `summary_rollup`, `daily_metric`, `asset_metric`, `session_metric`, `finding`, `position`, `position_fill`. Never recomputes.
-- Dashboard filters live in the URL via TanStack Router typed search params (`useDashboardFilters` hook). `timeRange` actually filters the daily slice; `symbols` / `instrument` / `setupTagIds` are UI-only for this phase (wiring them into the aggregate queries requires a per-filter rollup table — parked for Phase 6).
-- Heatmap is hour-only this phase. Day-of-week axis needs a new `day_of_week_metric` derived table — documented as deferred.
-- Notes tab uses plain `<textarea>` + `react-markdown` + `rehype-sanitize`. No WYSIWYG. Autosave debounced at 1.2s via `useAutosave`.
-- Mutation handlers use TanStack Query `invalidateQueries` (not optimistic patching) for now — simpler, still feels responsive.
-- Coach tab is a stub — `<CoachTabStub />` describes what Phase 4 will plug in.
-- `<VersionBadge />` shows `v{DERIVATION_VERSION}` in the top bar so every screenshot is timestamped with the analysis engine version.
-- Tailwind tokens added: `brand: #ea580c`, `pnl-win: #16a34a`, `pnl-loss: #dc2626`, `gridTemplateColumns['24']` for the heatmap strip.
+**Key design decisions / gotchas recorded during implementation**
+- Presentation reads only derived rows (spec §4.1) — every server fn hits `summary_rollup`, `daily_metric`, `asset_metric`, `session_metric`, `finding`, `position`, `position_fill`, `fill`, plus the new journal tables. Never recomputes.
+- Dashboard filter state lives entirely in the URL via typed search params + `useDashboardFilters` hook. `timeRange` actually filters the daily slice; `symbols` / `instrument` / `setupTagIds` are UI-only — wiring them into aggregate queries needs per-filter rollup tables, parked for Phase 6.
+- Heatmap is hour-only (single-row 24-col grid). Day-of-week axis requires a new `dayOfWeekMetric` derived table — deferred.
+- `DashboardBundle.topFindings` uses a narrow `DashboardFinding` type (concrete JSON-safe `evidence`) instead of the generic `Finding<TEvidence>` — TanStack Start's `ValidateSerializableMapped` rejects `unknown`. Same treatment applied in `TradeDetailBundle.fills.normalizerHint` and `TradeDetailBundle.findings.evidence` via a local `JsonValue` type (the pattern `src/server/import.ts` already used).
+- Better Auth v1.6.5 exposes `databaseHooks.user.create.after` natively — used this for the mistake-tag seeder instead of a lazy fallback.
+- shadcn's installed `<ToggleGroup>` (from `@base-ui/react`) no longer takes `type="single"` — it uses array values. Adapted everywhere (`value={[single]}`, unwrap in `onValueChange`).
+- Notes tab uses plain `<Textarea>` + `react-markdown` + `rehype-sanitize`. Autosave is ref-based (`latestSave.current`) so the debounce timer doesn't reset on every render when the save callback closes over position-scoped state.
+- sonner `<Toaster />` is imported from the raw package, not the `src/components/ui/sonner.tsx` wrapper (the wrapper pulls from `next-themes` which isn't set up; raw import with `theme="dark"` is equivalent).
+- Stubbed `/app/trades` and `/app/digest` routes created in Task 8 to keep the top bar typechecking. `routeTree.gen.ts` was manually edited there and in Task 16 (for `$positionId`).
+- Dashboard-side links to `/trades/:id` use plain `<a>` anchors (pragmatic — TanStack Router's typed `<Link>` requires routes registered at compile-time, Task 16 filled that in; swapping anchors → Link is Phase 6 polish).
+- Built-in `db.$count(table, where)` works in the installed drizzle version (`0.45.2`); no SQL-count fallback needed.
+- `applyPositionTag` ownership check tightened from "fetch all user positions" to `inArray(position.id, positionIds) AND eq(userId)` — bounded by the 200-ID request cap.
+- Component tests: `@testing-library/react` + `jsdom` installed, `tests/setup.ts` extends `expect` with jest-dom matchers, component tests use `// @vitest-environment jsdom` docblock to opt in per-file.
 
 **Deferred from Phase 3**
-- To be filled at phase close. Anticipated: day-of-week heatmap axis, dashboard-level symbol/setup filters, export button, rich markdown editor.
+- Day-of-week axis on the heatmap (needs new `dayOfWeekMetric` derived table)
+- Symbol / setup-tag / instrument filters wired into KPI + equity-curve + heatmap queries (today only `timeRange` is applied)
+- Export button on dashboard controls row
+- Rich-text / markdown-editor toolbar on Notes tab (plain textarea for now)
+- Trade list: date range picker, size-percentile slider, tag-filter chips
+- Replace plain `<a href="/trades/...">` anchors with typed `<Link to="/trades/$positionId">` across dashboard (bars, findings sidebar) and trade list (table rows)
+- E2E tests (Playwright) and visual regression — parked for Phase 6
+- Same pre-existing Phase-0 smoke-test failure (empty OAuth env vars in `.env.local`) still present
 
 ---
