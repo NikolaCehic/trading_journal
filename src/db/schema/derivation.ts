@@ -31,7 +31,6 @@ export const position = pgTable('position', {
   derivationVersion: integer('derivation_version').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  index('position_user_id_idx').on(t.userId),
   index('position_user_symbol_idx').on(t.userId, t.symbol),
   index('position_derivation_version_idx').on(t.userId, t.derivationVersion),
   index('position_opened_at_idx').on(t.userId, t.openedAt),
@@ -45,6 +44,7 @@ export const positionFill = pgTable('position_fill', {
   derivationVersion: integer('derivation_version').notNull(),
 }, (t) => [
   unique('position_fill_unique').on(t.positionId, t.fillId),
+  index('position_fill_position_id_idx').on(t.positionId),
   index('position_fill_fill_id_idx').on(t.fillId),
 ])
 
