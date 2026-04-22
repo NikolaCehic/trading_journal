@@ -1,5 +1,6 @@
 import '~/styles/globals.css'
 import { createRootRoute, HeadContent, Outlet, ScrollRestoration, Scripts } from '@tanstack/react-router'
+import { Toaster } from 'sonner'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -20,6 +21,7 @@ function RootComponent() {
       </head>
       <body className="min-h-screen bg-neutral-950 text-neutral-100 antialiased">
         <Outlet />
+        <Toaster theme="dark" richColors />
         <ScrollRestoration />
         <Scripts />
       </body>
