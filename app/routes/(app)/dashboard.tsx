@@ -5,6 +5,9 @@ import { useDashboardFilters } from '~/hooks/useDashboardFilters'
 import { ControlsRow } from '~/components/dashboard/ControlsRow'
 import { KpiTilesRow } from '~/components/dashboard/KpiTilesRow'
 import { EquityCurveCard } from '~/components/dashboard/EquityCurveCard'
+import { TimeOfDayHeatmapCard } from '~/components/dashboard/TimeOfDayHeatmapCard'
+import { AssetBarsCard } from '~/components/dashboard/AssetBarsCard'
+import { FindingsSidebar } from '~/components/dashboard/FindingsSidebar'
 import { serializeFilters } from '~/lib/filters'
 import type { DashboardBundle } from '~/domain/dashboard'
 
@@ -62,17 +65,18 @@ function DashboardSkeleton() {
 }
 
 function DashboardContent({ bundle }: { bundle: DashboardBundle }) {
-  // Populated by Tasks 10-13.
   return (
     <div className="grid grid-cols-[1fr_320px] gap-6">
       <div className="flex flex-col gap-6">
         <KpiTilesRow bundle={bundle} />
         <EquityCurveCard bundle={bundle} />
-        {/* Equity curve (Task 11) */}
-        {/* Heatmap + Asset breakdown (Tasks 12-13) */}
+        <div className="grid grid-cols-2 gap-4">
+          <TimeOfDayHeatmapCard bundle={bundle} />
+          <AssetBarsCard bundle={bundle} />
+        </div>
       </div>
       <aside>
-        {/* Findings sidebar (Task 13) */}
+        <FindingsSidebar bundle={bundle} />
       </aside>
     </div>
   )
