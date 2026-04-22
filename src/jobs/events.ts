@@ -41,3 +41,21 @@ export async function sendDerivationComplete(data: DerivationCompletePayload['da
 export async function sendDerivationRederive(data: DerivationRederivePayload['data']) {
   await inngest.send({ name: 'derivation/rederive', data })
 }
+
+export type DigestComposePayload = {
+  name: 'digest/compose'
+  data: { userId: string; isoWeek: string }
+}
+
+export type DigestSendPayload = {
+  name: 'digest/send'
+  data: { userId: string; digestRunId: string }
+}
+
+export async function sendDigestCompose(data: DigestComposePayload['data']) {
+  await inngest.send({ name: 'digest/compose', data })
+}
+
+export async function sendDigestSend(data: DigestSendPayload['data']) {
+  await inngest.send({ name: 'digest/send', data })
+}
