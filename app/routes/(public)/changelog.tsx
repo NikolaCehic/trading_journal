@@ -14,6 +14,19 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.9',
+    date: '2026-04-29',
+    title: 'Market data + real candles',
+    shipped: [
+      'Real OHLCV candles behind fills on trade detail (Binance public klines)',
+      'market_candles cache table with lazy backfill — no repeat fetches',
+      'Auto interval: 5m / 15m / 1h / 4h based on position duration',
+      'Symbol resolver across Binance, Bybit, OKX, Hyperliquid → Binance canonical',
+      'Rate limiter (60 req/min) + 429 Retry-After + 5xx exponential backoff',
+      'Graceful fallback to fills-only view for unsupported symbols',
+    ],
+  },
+  {
     version: 'v0.8',
     date: '2026-04-28',
     title: 'Pre-trade plans + regression testing',

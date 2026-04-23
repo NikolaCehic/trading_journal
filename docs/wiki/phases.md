@@ -403,3 +403,39 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Partial-fill exit-slip accuracy** — `rMultiplePlanned` uses final `realizedPnl` over planned risk; multi-exit fills may not line up with the plan's target. Good enough for v1.
 
 ---
+
+## Phase 9 — Market Data + Chart Upgrade · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-29-phase-9-market-data.md`
+
+**Shipped** (4 task commits from `c730c06` through `b4f1c8b`)
+
+- **`market_candles` schema + candleStore** — new `market_candle` table with composite PK `(exchange, symbol, interval, openTime)` + secondary `(symbol, interval, openTime)` index. No per-user scope — candles are public market data shared across users. `Candle` domain type + `CandleInterval` enum (`'5m' | '15m' | '1h' | '4h' | '1d'`) + `INTERVAL_MS` map. `fetchBinanceKlines` hits `https://api.binance.com/api/v3/klines` with 10s timeout; returns `[]` on 400 (unsupported symbol); typed `Candle[]` return. `getCandles(db, { exchange, symbol, interval, from, to })` aligns the range to interval boundaries, reads cached rows, detects contiguous gaps, fetches missing bars from Binance in 1000-bar chunks, `insert().onConflictDoNothing()` to persist, merges + dedupes by openTime. Migration `drizzle/0012_exotic_midnight.sql`. 6 tests.
+- **Symbol resolver + `getCandlesForPosition` server fn** — `resolveToBinance(exchange, symbol)` handles each exchange: Binance/Bybit pass-through, OKX defensive normalization (strip `-SWAP` + hyphens in case non-canonical symbols sneak in), Hyperliquid appends `USDT` (BTC → BTCUSDT). Returns discriminated union. Extension point: `BINANCE_UNSUPPORTED_HL_SYMBOLS` hand-curated set for HL-only tokens Binance doesn't list — empty by default. Server fn `getCandlesForPosition` auth-checks, ownership-checks, computes duration + 20%-padding range, auto-selects interval by total range (≤6h: 5m, ≤24h: 15m, ≤7d: 1h, else 4h), and delegates to `getCandles`. Returns `{ supported, interval, candles } | { supported: false, reason }`. 16 new tests (7 resolver + 9 server fn).
+- **FillsChart with candles** — `$positionId.tsx` upgraded. Old fills-only SVG renamed to `FillsSvgOnly` (kept as fallback). New `FillsChart` fetches candles via `useQuery(['position-candles', positionId], ...)`, shows a loading placeholder, falls back to fills-only when `!supported` or empty candles, otherwise renders `CandlesAndFills`. The candle chart: green/red wick+body per candle, dashed entry/exit avg guide lines, 3 horizontal grid lines with price labels on the left axis, 5-label x-axis formatted by interval (HH:MM for sub-hour, MM/DD HH:MM for hourly, MM/DD for 4h/1d), OHLC hover tooltip in the top-right. Fills overlay on top as circles with vertical drop lines. Card subtitle updates dynamically: "Loading candles…" / "N candles (interval) · M fills" / "Price candles unavailable — fills-only view".
+- **Rate limiter + 429/5xx retry** — exported `createRateLimiter(maxRpm, windowMs)` factory (for testability); module-scope singleton at 60 req/min (well below Binance's 1200/min ceiling). `fetchBinanceKlines` now wraps the fetch in a retry loop (MAX_RETRIES=3): 429 respects `Retry-After` header; 5xx uses exponential backoff (500ms → 1s → 2s → 4s, capped at 10s); network errors trigger the same exponential backoff; 400 returns `[]` immediately. The existing `candleStore` try/catch behavior is preserved — one failed chunk doesn't kill the batch. 10 new tests (5 rate-limiter + 5 retry scenarios).
+
+**Test state after Phase 9:** 255 passing / 5 skipped / 0 failing. Typecheck clean.
+
+**Key design decisions / gotchas**
+- **Candles are public data, no user scope.** One Binance fetch fills the cache for every user on that (symbol, interval, range) tuple — huge win for cost.
+- **Lazy backfill with gap detection.** Rather than eagerly fetching 1 year of candles for every symbol, we only fetch what a trade detail view actually asks for (typically a few hundred bars per position). Gaps are detected per 1000-bar chunk and fetched contiguously.
+- **Symbol resolver defaults to supported.** Binance lists most crypto pairs users would actually trade. The unsupported path triggers only for the hand-maintained `BINANCE_UNSUPPORTED_HL_SYMBOLS` set (currently empty) or when the fetcher receives a 400 (which we convert to `[]` and treat as "no data available").
+- **Interval selection is per-position, not per-view.** A short scalp gets 5m candles; a multi-week swing gets 4h. Keeps the chart readable regardless of trade duration.
+- **Rate limiter is in-memory and per-process.** Serverless environments may not share this state, which could let a burst of cold starts exceed the aggregate rate. Acceptable for beta; swap to a KV-backed limiter (Upstash, Neon, or Inngest's rate-limit helper) if needed in production.
+- **429 Retry-After parsing** handles both `<seconds>` numeric format and the fallback 5000ms default. Strict HTTP-date format not supported — Binance doesn't emit it.
+- **400 is treated as "symbol not supported" (not an error).** Returning `[]` lets the candleStore cache the empty result implicitly (no rows persisted, next call re-fetches — acceptable since this is rare).
+- **Fetcher is exposed as `fetchBinanceKlines` + internal throttle singleton.** Tests use `createRateLimiter(...)` factory with `vi.useFakeTimers()` for deterministic wait behavior.
+- **Card subtitle threading via callback prop** (`onSubtitle`) from `FillsChart` up to `FillsTimeline`. Clean separation: the chart component knows whether it's loading/supported/fallback; the card shell renders the subtitle string.
+
+**Deferred from Phase 9**
+- **Market data for HL-only tokens** Binance doesn't list (if any exist in practice). Alternative: integrate HL's public info endpoint for HYPE-and-friends OHLCV. Add when users report gaps.
+- **Dashboard equity-curve BTC-price overlay** — nice context for "was I outperforming HODL?" but scope-bloat for this phase.
+- **Volume pane** below the candle chart. Data is cached; rendering is a follow-up UI task.
+- **KV-backed rate limiter** for multi-process / serverless deployment. In-memory is fine for beta.
+- **Tick data / order-book replay** — way outside scope.
+- **CI config for Playwright** — separate infra phase.
+- **Plan snapshots / auto plan-matching / plan reminders** — Phase 8 follow-ups still deferred.
+- **Custom user-defined detectors (DSL)** — Phase 10+.
+
+---
