@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { MetricChip, SeverityDot, fmtUSD, fmtPct } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 import { getTradeDetail, type TradeDetailBundle } from '~/server/trades'
+import { downloadFile } from '~/lib/csv'
 import { upsertTradeNote, applyPositionTag, removePositionTag, createTag } from '~/server/journal'
 import { getTradeCoach } from '~/server/coach'
 import { CoachNarrative } from '~/components/trades/CoachNarrative'
@@ -166,8 +167,13 @@ function PositionHeader({ bundle }: { bundle: TradeDetailBundle }) {
   const pnlClass = pnlUp ? 'tj-up' : 'tj-down'
   const pnlSign = pnlUp ? '+' : ''
 
+  function exportDetail() {
+    const name = `trade-${p.symbol}-${p.id.slice(0, 8)}.json`
+    downloadFile(name, JSON.stringify(bundle, null, 2), 'application/json;charset=utf-8')
+  }
+
   return (
-    <div className="tj-card tj-card-pad" style={{ display: 'flex', alignItems: 'stretch', gap: 24 }}>
+    <div className="tj-card tj-card-pad" style={{ position: 'relative', display: 'flex', alignItems: 'stretch', gap: 24 }}>
       <div style={{ flex: '0 0 auto', paddingRight: 24, borderRight: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>
@@ -216,6 +222,15 @@ function PositionHeader({ bundle }: { bundle: TradeDetailBundle }) {
           </div>
         )}
       </div>
+      <button
+        type="button"
+        className="tj-btn tj-btn-ghost tj-btn-sm"
+        onClick={exportDetail}
+        title="Export this trade as JSON"
+        style={{ position: 'absolute', top: 12, right: 12 }}
+      >
+        <Icon name="file" size={12} />
+      </button>
     </div>
   )
 }

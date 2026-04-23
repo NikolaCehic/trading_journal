@@ -9,6 +9,7 @@ import { Heatmap } from '~/components/dashboard/Heatmap'
 import { getDashboardBundle } from '~/server/dashboard'
 import { useDashboardFilters } from '~/hooks/useDashboardFilters'
 import { serializeFilters } from '~/lib/filters'
+import { toCsv, downloadFile } from '~/lib/csv'
 import type { TimeRange, InstrumentFilter } from '~/domain/dashboard'
 
 export const Route = createFileRoute('/(app)/_layout/dashboard')({
@@ -48,6 +49,35 @@ function DashboardPage() {
     staleTime: 30_000,
   })
 
+  function exportDashboard() {
+    if (!bundle) return
+    const lines: string[] = []
+    lines.push('# Trade Journal — Dashboard Export')
+    lines.push(`# Generated: ${new Date().toISOString()}`)
+    lines.push(`# Time range: ${filters.timeRange}`)
+    if (filters.symbols.length) lines.push(`# Symbols: ${filters.symbols.join(', ')}`)
+    if (filters.instrument !== 'all') lines.push(`# Instrument: ${filters.instrument}`)
+    lines.push('')
+    lines.push('## Summary')
+    lines.push(`Net P&L,${bundle.summary.totalPnl}`)
+    lines.push(`Win Rate,${(bundle.summary.winRate * 100).toFixed(2)}%`)
+    lines.push(`Expectancy,${bundle.summary.expectancy.toFixed(2)}`)
+    lines.push(`Profit Factor,${bundle.summary.profitFactor?.toFixed(2) ?? 'N/A'}`)
+    lines.push(`Trade Count,${bundle.summary.tradeCount}`)
+    lines.push(`Total Fees,${bundle.summary.totalFees}`)
+    lines.push('')
+    lines.push('## Asset Breakdown')
+    lines.push(toCsv(bundle.assetBreakdown, [
+      { header: 'Symbol', get: r => r.symbol },
+      { header: 'Trade Count', get: r => r.tradeCount },
+      { header: 'Realized PnL', get: r => r.realizedPnl },
+      { header: 'Win Rate', get: r => (r.winRate * 100).toFixed(2) + '%' },
+      { header: 'Expectancy', get: r => r.expectancy.toFixed(2) },
+    ]))
+    const name = `dashboard-${new Date().toISOString().slice(0, 10)}.csv`
+    downloadFile(name, lines.join('\n'))
+  }
+
   const netPnl = bundle?.kpis.realizedPnl.value ?? 0
   const netPnlDelta = bundle?.kpis.realizedPnl.deltaPct ?? 0
   const netPnlColor = netPnl >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)'
@@ -77,6 +107,14 @@ function DashboardPage() {
           />
           <button type="button" className="tj-btn tj-btn-sm">
             <Icon name="refresh" size={12} /> Sync
+          </button>
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            onClick={() => exportDashboard()}
+            disabled={!bundle}
+          >
+            <Icon name="file" size={12} /> Export
           </button>
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-subtle)' }}>

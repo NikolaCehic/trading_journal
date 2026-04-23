@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { getTradeList, type TradeListRow } from '~/server/trades'
+import { toCsv, downloadFile } from '~/lib/csv'
 import { listTags, applyPositionTag } from '~/server/journal'
 import {
   Checkbox,
@@ -289,6 +290,39 @@ function TradesPage() {
   })
 
   const rows: TradeListRow[] = data?.rows ?? []
+
+  const TRADES_COLUMNS: import('~/lib/csv').CsvColumn<TradeListRow>[] = [
+    { header: 'Symbol', get: r => r.symbol },
+    { header: 'Instrument', get: r => r.instrumentType },
+    { header: 'Side', get: r => r.side },
+    { header: 'Opened', get: r => new Date(r.openedAt).toISOString() },
+    { header: 'Closed', get: r => r.closedAt ? new Date(r.closedAt).toISOString() : '' },
+    { header: 'Hold (seconds)', get: r => r.holdSeconds ?? '' },
+    { header: 'Entry Price', get: r => r.entryAvgPrice },
+    { header: 'Exit Price', get: r => r.exitAvgPrice ?? '' },
+    { header: 'Notional USD', get: r => r.notionalUsd },
+    { header: 'Realized PnL', get: r => r.realizedPnl },
+    { header: 'Realized PnL %', get: r => r.realizedPnlPct ?? '' },
+    { header: 'Total Fees', get: r => r.totalFees },
+    { header: 'Tag Count', get: r => r.tagCount },
+    { header: 'Has Note', get: r => r.hasNote ? 'yes' : 'no' },
+    { header: 'Was Liquidated', get: r => r.wasLiquidated ? 'yes' : 'no' },
+  ]
+
+  function exportTrades() {
+    if (!data?.rows.length) return
+    const csv = toCsv(data.rows, TRADES_COLUMNS)
+    const name = `trades-${new Date().toISOString().slice(0, 10)}.csv`
+    downloadFile(name, csv)
+  }
+
+  function exportSelected() {
+    if (!selected.length || !data?.rows) return
+    const selectedRows = data.rows.filter(r => selected.includes(r.id))
+    const csv = toCsv(selectedRows, TRADES_COLUMNS)
+    const name = `trades-selected-${new Date().toISOString().slice(0, 10)}.csv`
+    downloadFile(name, csv)
+  }
 
   const toggleSel = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -607,7 +641,12 @@ function TradesPage() {
           <button type="button" className="tj-btn tj-btn-sm">
             <Icon name="calendar" size={12} /> Apr 16 — 22
           </button>
-          <button type="button" className="tj-btn tj-btn-sm">
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            onClick={exportTrades}
+            disabled={!data?.rows.length}
+          >
             <Icon name="file" size={12} /> Export CSV
           </button>
         </div>
@@ -726,7 +765,11 @@ function TradesPage() {
             >
               <Icon name="tag" size={12} /> Tag
             </button>
-            <button type="button" className="tj-btn tj-btn-sm" disabled>
+            <button
+              type="button"
+              className="tj-btn tj-btn-sm"
+              onClick={exportSelected}
+            >
               <Icon name="file" size={12} /> Export
             </button>
           </div>
