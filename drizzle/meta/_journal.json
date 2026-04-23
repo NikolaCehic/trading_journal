@@ -64,6 +64,13 @@
       "when": 1776958266018,
       "tag": "0008_add_coach_referenced_position_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1745280000000,
+      "tag": "0009_exchange_kind_bybit_okx",
+      "breakpoints": true
     }
   ]
 }

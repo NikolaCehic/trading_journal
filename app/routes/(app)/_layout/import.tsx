@@ -16,7 +16,7 @@ export const Route = createFileRoute('/(app)/_layout/import')({
   component: ImportPage,
 })
 
-type CsvSource = 'binance-csv' | 'hyperliquid-csv'
+type CsvSource = 'binance-csv' | 'hyperliquid-csv' | 'bybit-csv' | 'okx-csv'
 
 function CsvUploadCard() {
   const qc = useQueryClient()
@@ -107,6 +107,22 @@ function CsvUploadCard() {
             >
               Hyperliquid
             </button>
+            <button
+              type="button"
+              className={`tj-chip ${source === 'bybit-csv' ? 'is-active' : ''}`}
+              onClick={() => setSource('bybit-csv')}
+              style={{ height: 22, padding: '0 8px', fontSize: 11 }}
+            >
+              Bybit
+            </button>
+            <button
+              type="button"
+              className={`tj-chip ${source === 'okx-csv' ? 'is-active' : ''}`}
+              onClick={() => setSource('okx-csv')}
+              style={{ height: 22, padding: '0 8px', fontSize: 11 }}
+            >
+              OKX
+            </button>
           </div>
         </>
       }
@@ -144,7 +160,11 @@ function CsvUploadCard() {
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                {source === 'binance-csv' ? 'Spot / USDⓈ-M Futures Trade History' : 'Hyperliquid trade history export'}
+                {source === 'binance-csv' ? 'Spot / USDⓈ-M Futures Trade History'
+                  : source === 'hyperliquid-csv' ? 'Hyperliquid trade history export'
+                  : source === 'bybit-csv' ? 'Bybit Closed P&L / Trade History'
+                  : source === 'okx-csv' ? 'OKX Trade History'
+                  : 'CSV'}
               </div>
             </div>
             <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={onFileChange} />

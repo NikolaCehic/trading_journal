@@ -13,6 +13,8 @@ export const importStatusEnum = pgEnum('import_status', [
 export const exchangeKindEnum = pgEnum('exchange_kind', [
   'binance',
   'hyperliquid',
+  'bybit',
+  'okx',
 ])
 
 export const normalizeStatusEnum = pgEnum('normalize_status', [

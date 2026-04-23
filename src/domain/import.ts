@@ -6,7 +6,7 @@ export type ImportStatus =
   | 'complete'
   | 'failed'
 
-export type ExchangeKind = 'binance' | 'hyperliquid'
+export type ExchangeKind = 'binance' | 'hyperliquid' | 'bybit' | 'okx'
 
 export type ImportSource =
   | 'binance-csv'

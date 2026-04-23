@@ -6,6 +6,8 @@ import { db } from '~/db/client'
 import { importRecord, exchangeAccount } from '~/db/schema/ingestion'
 import { BinanceCsvAdapter } from '~/ingestion/adapters/binance-csv'
 import { HyperliquidCsvAdapter } from '~/ingestion/adapters/hyperliquid-csv'
+import { BybitCsvAdapter } from '~/ingestion/adapters/bybit-csv'
+import { OkxCsvAdapter } from '~/ingestion/adapters/okx-csv'
 import { Orchestrator } from '~/ingestion/orchestrator'
 import { sendIngestionComplete, sendHLWalletPull } from '~/jobs/events'
 import { log } from '~/lib/log'
@@ -13,7 +15,7 @@ import { z } from 'zod'
 
 const validateCsvInput = z.object({
   csvContent: z.string().min(1),
-  source: z.enum(['binance-csv', 'hyperliquid-csv']),
+  source: z.enum(['binance-csv', 'hyperliquid-csv', 'bybit-csv', 'okx-csv']),
 })
 
 export const validateCsvImport = createServerFn({ method: 'POST' })
@@ -23,16 +25,18 @@ export const validateCsvImport = createServerFn({ method: 'POST' })
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
 
-    const adapter = data.source === 'binance-csv'
-      ? new BinanceCsvAdapter()
-      : new HyperliquidCsvAdapter()
+    const adapter =
+      data.source === 'binance-csv' ? new BinanceCsvAdapter() :
+      data.source === 'hyperliquid-csv' ? new HyperliquidCsvAdapter() :
+      data.source === 'bybit-csv' ? new BybitCsvAdapter() :
+      new OkxCsvAdapter()
 
     return adapter.validate(data.csvContent)
   })
 
 const startCsvImportInput = z.object({
   csvContent: z.string().min(1),
-  source: z.enum(['binance-csv', 'hyperliquid-csv']),
+  source: z.enum(['binance-csv', 'hyperliquid-csv', 'bybit-csv', 'okx-csv']),
   fileName: z.string().optional(),
 })
 
@@ -47,28 +51,39 @@ export const startCsvImport = createServerFn({ method: 'POST' })
     const userId = session.user.id
     const importId = `imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
-    const exchange = data.source === 'binance-csv' ? 'binance' : 'hyperliquid'
+    const exchange =
+      data.source === 'binance-csv' ? 'binance' :
+      data.source === 'hyperliquid-csv' ? 'hyperliquid' :
+      data.source === 'bybit-csv' ? 'bybit' :
+      'okx'
+    const exchangeLabel =
+      exchange === 'binance' ? 'Binance' :
+      exchange === 'hyperliquid' ? 'Hyperliquid' :
+      exchange === 'bybit' ? 'Bybit' :
+      'OKX'
     const accountId = `ea_${userId}_${exchange}`
     await db.insert(exchangeAccount).values({
       id: accountId,
       userId,
-      exchange,
-      label: exchange === 'binance' ? 'Binance' : 'Hyperliquid',
+      exchange: exchange as 'binance' | 'hyperliquid' | 'bybit' | 'okx',
+      label: exchangeLabel,
     }).onConflictDoNothing()
 
     await db.insert(importRecord).values({
       id: importId,
       userId,
       exchangeAccountId: accountId,
-      exchange,
+      exchange: exchange as 'binance' | 'hyperliquid' | 'bybit' | 'okx',
       source: data.source,
       status: 'pending',
       fileName: data.fileName ?? null,
     })
 
-    const adapter = data.source === 'binance-csv'
-      ? new BinanceCsvAdapter()
-      : new HyperliquidCsvAdapter()
+    const adapter =
+      data.source === 'binance-csv' ? new BinanceCsvAdapter() :
+      data.source === 'hyperliquid-csv' ? new HyperliquidCsvAdapter() :
+      data.source === 'bybit-csv' ? new BybitCsvAdapter() :
+      new OkxCsvAdapter()
 
     const orch = new Orchestrator(db)
     const result = await orch.runImport({
@@ -138,7 +153,7 @@ type SerializedImportRecord = {
   id: string
   userId: string
   exchangeAccountId: string | null
-  exchange: 'binance' | 'hyperliquid'
+  exchange: 'binance' | 'hyperliquid' | 'bybit' | 'okx'
   source: string
   status: 'pending' | 'parsing' | 'normalizing' | 'deriving' | 'complete' | 'failed'
   fileName: string | null
