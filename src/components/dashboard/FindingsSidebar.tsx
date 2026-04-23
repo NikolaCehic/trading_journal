@@ -28,8 +28,9 @@ function severityToLevel(severity: FindingSeverity): 'red' | 'amber' | 'neutral'
   return 'neutral'
 }
 
-function findingTitle(f: DashboardFinding): string {
-  return DETECTOR_LABELS[f.detectorId] ?? f.detectorId
+function resolveTitle(f: DashboardFinding): string {
+  if (f.detectorId.startsWith('custom:')) return f.title
+  return DETECTOR_LABELS[f.detectorId] ?? f.title
 }
 
 function findingEvidence(f: DashboardFinding): string {
@@ -95,64 +96,66 @@ export function FindingsSidebar({ findings }: Props) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <SeverityDot level={topLevel} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{findingTitle(top)}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{resolveTitle(top)}</div>
           </div>
           <div style={{ fontSize: 12, color: 'var(--fg-subtle)', lineHeight: 1.5, marginLeft: 14 }}>
             {findingEvidence(top)}
           </div>
 
-          {!adoptedRuleId ? (
-            <div style={{ marginLeft: 14, marginTop: 8 }}>
+          {!top.detectorId.startsWith('custom:') && (
+            !adoptedRuleId ? (
+              <div style={{ marginLeft: 14, marginTop: 8 }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    color: 'var(--fg-subtle)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Suggested rule: {RULE_TEXT}
+                </div>
+                <button
+                  type="button"
+                  className="tj-btn tj-btn-sm"
+                  disabled={adopt.isPending}
+                  onClick={() => adopt.mutate()}
+                >
+                  {adopt.isPending ? 'Saving…' : 'Adopt this rule'}
+                </button>
+              </div>
+            ) : (
               <div
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 11,
-                  color: 'var(--fg-subtle)',
-                  marginBottom: 6,
+                  marginLeft: 14,
+                  marginTop: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                Suggested rule: {RULE_TEXT}
+                <span className="tj-chip tj-chip-accent">
+                  Rule active &middot; {violations !== null ? violations : '—'} violation
+                  {violations === 1 ? '' : 's'} this week
+                </span>
+                <button
+                  type="button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    fontSize: 11,
+                    color: 'var(--fg-subtle)',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                  disabled={archive.isPending}
+                  onClick={() => archive.mutate(adoptedRuleId)}
+                >
+                  Archive
+                </button>
               </div>
-              <button
-                type="button"
-                className="tj-btn tj-btn-sm"
-                disabled={adopt.isPending}
-                onClick={() => adopt.mutate()}
-              >
-                {adopt.isPending ? 'Saving…' : 'Adopt this rule'}
-              </button>
-            </div>
-          ) : (
-            <div
-              style={{
-                marginLeft: 14,
-                marginTop: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span className="tj-chip tj-chip-accent">
-                Rule active &middot; {violations !== null ? violations : '—'} violation
-                {violations === 1 ? '' : 's'} this week
-              </span>
-              <button
-                type="button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  fontSize: 11,
-                  color: 'var(--fg-subtle)',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-                disabled={archive.isPending}
-                onClick={() => archive.mutate(adoptedRuleId)}
-              >
-                Archive
-              </button>
-            </div>
+            )
           )}
         </div>
 
@@ -161,7 +164,7 @@ export function FindingsSidebar({ findings }: Props) {
           <FindingCard
             key={i + 1}
             level={severityToLevel(f.severity)}
-            title={findingTitle(f)}
+            title={resolveTitle(f)}
             evidence={findingEvidence(f)}
           />
         ))}
