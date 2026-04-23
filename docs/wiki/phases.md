@@ -439,3 +439,40 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Custom user-defined detectors (DSL)** — Phase 10+.
 
 ---
+
+## Phase 10 — Plan Automation + CI Reliability · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-30-phase-10-plan-automation-ci.md`
+
+**Shipped** (5 task commits from `ba7f2f0` through `15b3a5f`)
+
+- **Plan snapshots** — 5 nullable columns added to `position` (`planSnapshotEntryPrice`, `planSnapshotStopPrice`, `planSnapshotTargetPrice`, `planSnapshotSize`, `planSnapshotRationale`). `linkPositionToPlan` now reads the plan's current values and writes them into these columns in the same UPDATE; `unlinkPositionFromPlan` nulls them. `getTradeDetail` builds `linkedPlan` from snapshot values when present, falling back to the live plan row for legacy links. Effect: plan edits after link don't retroactively rewrite adherence metrics. Migration `drizzle/0013_amused_lady_ursula.sql`. 3 new tests covering link-writes-snapshot, unlink-clears-snapshot, and plan-edit-doesn't-shift-detail.
+- **Auto plan→position matching** — pure match function at `src/planMatcher/match.ts`: match only when exactly one unarchived plan on same `symbol` + `intendedSide`/`side` was created within `[position.openedAt − 48h, + 12h]` and has no existing link. Inngest function `autoMatchPlansFn` in `src/jobs/planMatcher.ts` triggered by new `plan/auto-match` event. Runner emits `sendPlanAutoMatch({ userId })` after both `deriveOnIngestionCompleteFn` and `rederiveFn` complete. 9 tests cover all match/skip edges.
+- **Plan reminders** — new `reminderSentAt` timestamp on `tradePlan` (migration `drizzle/0014_blue_aqueduct.sql`). `renderPlanReminderEmail(userId, plans)` produces HTML + plain-text with unsubscribe link (reuses the Phase 7 signed token). Two Inngest functions: `planReminderScheduler` (cron hourly, filters users whose local time is 18:xx via `isLocal18` helper), and `sendPlanReminderFn` which finds stale plans (>7d old, no linked position, `reminderSentAt` null or >7d old), renders, sends via `sendDigestEmail` (broadened signature to accept any `SendableEmail` shape), and stamps `reminderSentAt`. Skips demo users and `digestEnabled=false`. 5 renderer tests.
+- **GitHub Actions CI** — `.github/workflows/ci.yml` runs `typecheck → vitest → e2e:install → e2e` on every PR + push to main. Requires repo secrets `CI_DATABASE_URL` (separate Neon branch, pre-migrated + seeded) and `CI_BETTER_AUTH_SECRET`. On failure, uploads `playwright-report/` as a 7-day artifact. Uses pnpm 9, Node 22, pnpm cache. Documented setup steps at the top of the workflow file.
+- **CLI-friendly env schema** — `src/db/client.ts` no longer imports `~/lib/env`; reads `process.env['DATABASE_URL']` directly with an explicit error message if missing. New `cliEnv` export in `src/lib/env.ts` covers only `DATABASE_URL` + optional `ANTHROPIC_API_KEY`. The `rederive` and `seed:demo` npm scripts had their `GOOGLE_CLIENT_ID=cli GOOGLE_CLIENT_SECRET=cli ANTHROPIC_API_KEY=cli` prefixes stripped — scripts now boot cleanly against `.env.local` with just the vars they actually need.
+
+**Test state after Phase 10:** 272 passing / 5 skipped / 0 failing. Typecheck clean.
+
+**Key design decisions / gotchas**
+- **Snapshot at link-time, not at close-time.** A plan links at some point between "position exists" and "position closed." Snapshotting on link means the user's latest plan values are what adherence measures against, even if the position later closes days after the plan was edited.
+- **Auto-match window is asymmetric** — 48h before but only 12h after the position's openedAt. A plan can be made the day before a trade (`long` wake-up plan), but a plan made a week after a position doesn't retroactively claim it.
+- **First-match-wins with `claimedPlanIds`** — if two positions could both link to the same single plan, the first one processed wins. Deterministic but order-dependent on the position array passed in.
+- **Inngest step serialization** — returning `Set` or `Date` from `step.run` loses type fidelity (JSON round-trip). Match logic uses plain `string[]` boundaries and re-coerces Dates inside steps when needed.
+- **Plan reminder email reuses `sendDigestEmail`** via a broadened `SendableEmail` structural type rather than renaming. Both digest emails and reminder emails flow through the same Resend wrapper + log-only fallback.
+- **Reminder rate-limit**: per-plan `reminderSentAt` ensures a plan isn't nagged more than once every 7 days. If a user has 3 stale plans but only 2 had `reminderSentAt` stamped recently, only the third gets included next time.
+- **CI secrets are named `CI_*`** to make it obvious they're test-only — never point them at production Neon. Users must create a separate Neon branch before enabling the workflow.
+- **`cliEnv` is ADDITIVE, not replacing `env`.** The web app still imports `env` for OAuth, Resend, etc. Only `db/client.ts` went direct-to-`process.env` so scripts stay clean. Minimal blast radius.
+- **Auto-match runs after EVERY derivation**, including rederives. This is fine because `matchPositionsToPlans` is idempotent: already-linked positions and already-claimed plans are filtered out via the `linkedPlanIds` set.
+
+**Deferred from Phase 10**
+- **Per-plan mute / snooze** for reminders — v1 respects the blanket `digestEnabled` flag only.
+- **Match confidence scoring** beyond "exact" vs "multiple" — a ranked best-match + auto-accept at high confidence is nicer UX but requires tuning the heuristic.
+- **CI: preview deploys** (per-PR app URL) — outside scope.
+- **CI: auto-seed** on every run — CI expects a pre-seeded Neon branch; full bootstrap workflow is a follow-up.
+- **Partial-fill exit-slip accuracy** — still unclear if today's logic is materially wrong; defer until validated.
+- **Dashboard market-price overlay / volume pane** — chart polish, Phase 11+.
+- **Mobile UX** — desktop-first remains.
+- **Custom user-defined detectors (DSL)** — Phase 11+.
+
+---

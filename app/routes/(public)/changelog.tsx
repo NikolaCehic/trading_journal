@@ -14,6 +14,18 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.10',
+    date: '2026-04-30',
+    title: 'Plan automation + CI',
+    shipped: [
+      'Plan snapshots — adherence metrics freeze on link; plan edits no longer rewrite history',
+      'Auto plan→position matching after derivation (48h before / 12h after window)',
+      'Plan reminders — daily email at local 18:00 for plans older than 7d with no link',
+      'GitHub Actions CI — typecheck + vitest + Playwright on every PR + main push',
+      'CLI-friendly env — rederive / seed:demo no longer need GOOGLE_CLIENT_ID=cli prefixes',
+    ],
+  },
+  {
     version: 'v0.9',
     date: '2026-04-29',
     title: 'Market data + real candles',
