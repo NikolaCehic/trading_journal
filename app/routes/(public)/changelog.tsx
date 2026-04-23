@@ -14,6 +14,19 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.8',
+    date: '2026-04-28',
+    title: 'Pre-trade plans + regression testing',
+    shipped: [
+      'Plans surface — create, edit, archive with entry/stop/target/size/rationale',
+      'Link positions to plans from the trade detail page',
+      'Real R-multiple when plan has entry + stop (1% fallback when no plan)',
+      'Plan adherence chips — entry slip, exit slip, size ratio, hit stop?, hit target?',
+      '12th detector: plan_adherence (oversized / cut-short / stop-breach violations)',
+      'Playwright E2E smoke suite — landing → demo → dashboard → trades → detail',
+    ],
+  },
+  {
     version: 'v0.7',
     date: '2026-04-27',
     title: 'Ingestion expansion + notification prefs',

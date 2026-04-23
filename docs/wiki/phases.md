@@ -360,3 +360,46 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Playwright E2E** — own setup phase.
 
 ---
+
+## Phase 8 — Pre-trade Plans + Regression Testing · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-28-phase-8-plans-regression.md`
+
+**Shipped** (6 task commits from `5e53651` through `ccbec60`)
+
+- **`trade_plan` schema + CRUD** — new table with `symbol`, `intendedSide`, nullable `entryPrice`/`stopPrice`/`targetPrice`/`plannedSize`, free-form `rationale`, `archivedAt`. `position.planId` nullable FK with `ON DELETE SET NULL` (archiving a plan preserves linked positions). Migration `drizzle/0011_sad_alex_power.sql`. Seven server fns in `src/server/plans.ts` — all mutations guarded by `assertNotDemo`. 24 new unit tests covering happy paths, demo-readonly, filter + ownership. Circular schema imports (position ↔ tradePlan) handled via lambda FK refs.
+- **`/plans` UI** — list page with Active/Archived/All filter, new-plan form with validated search params for symbol+side prefill, detail page with inline edit + archive/unarchive toggle + linked-positions chip row. TopBar adds a "Plans" nav entry between Trades and Digest. Rationale rendered with `react-markdown` + `rehype-sanitize` in read mode.
+- **Link-to-plan on trade detail** — `TradeDetailBundle` extended with `linkedPlan` + `availablePlans` (unarchived plans on the position's symbol+side). `PlanChip` component above the PnL column: unlinked → "Link to plan" button → dropdown of matching plans + "+ New" shortcut (prefills `/plans/new?symbol=&side=`); linked → "Plan linked · view" chip + "Unlink" button. Mutations invalidate the trade-detail query; toasts on success/error.
+- **R-multiple v2 + plan adherence chips** — `position.rMultiplePlanned: number | null` added to the bundle, computed as `realizedPnl / (|entry − stop| × size)` when plan has both prices. Metric-chips row prefers `rMultiplePlanned` (hint: "vs. planned risk") over the v1 1%-approximation fallback. A new 5-chip adherence row (Entry slip, Exit slip, Size ratio, Hit stop?, Hit target?) renders only when a plan is linked. Entry-slip / exit-slip color by favorability (long entry cheaper = green; long exit higher = green).
+- **`plan_adherence` detector** — new detector in `src/derivation/detectors/plan-adherence.ts` checks three violation kinds per linked position:
+  1. **oversized**: `actualSize > plannedSize * 1.2`
+  2. **cut_short**: winner closed before 70% of planned move toward target
+  3. **stop_breach**: loser held more than 1% past planned stop
+  Emits `critical` severity on `stop_breach`, `warning` on others. Evidence includes `planId`, `violationKind`, `actualValue`, `plannedValue`, `deltaPct`, `costUsd`. Registered in detector index; `DETECTOR_LABELS` updated with "Plan adherence". **`DERIVATION_VERSION` bumped 2 → 3** — users must `pnpm rederive`. Runner pre-fetches `planMap` (Map<planId, tradePlanRow>) for detectors; all 11 existing detector fixtures updated to include `planId: null` + empty `planMap`. 6 new tests.
+- **Playwright E2E smoke suite** — `@playwright/test` added as devDep; `playwright.config.ts` with single chromium project, `webServer` that reuses existing dev server in non-CI mode, `baseURL` env-configurable. `tests/e2e/smoke.spec.ts` walks landing → Try demo → dashboard → trades → detail → notes textarea → settings → export button visibility. Single happy-path, resilient selectors (role-based where possible). `pnpm e2e` / `pnpm e2e:install` / `pnpm e2e:ui` scripts. `.gitignore` excludes `/playwright-report/` + `/test-results/`. Notes-autosave expectation dropped from the test since demo users are blocked server-side by `assertNotDemo`.
+
+**Test state after Phase 8:** 223 unit tests passing / 5 skipped / 0 failing. Typecheck clean. E2E suite exists but requires `pnpm e2e:install` + `pnpm seed:demo` + a live Neon DB to run — not wired to CI yet.
+
+**Key design decisions / gotchas**
+- **Manual plan→position linking, not auto-matching.** Plans live independently of positions; users link them via the dropdown after a trade closes. Auto-matching (match by symbol + side + timing window) is judgment-heavy and false positives would be annoying. Deferred.
+- **`ON DELETE SET NULL`** on `position.planId` — so when a user archives/deletes a plan, we preserve linked positions but sever the reference. Hard-delete a plan → positions survive.
+- **R-multiple fallback chain**: `rMultiplePlanned` > `rMultiple` (1% approx) > `—`. The chip hint changes to communicate which is being shown. Both are exposed in the bundle so UI can decide.
+- **Entry/exit slip color semantics are side-sensitive**: for a long, cheaper-than-planned entry is favorable (green); for a short, richer entry is favorable. Two small helpers encapsulate this.
+- **plan_adherence detector ONLY runs on linked + closed positions.** Open positions are excluded (no exit price to evaluate). Positions with no plan are ignored — the existing "no-plan-trades" detector handles that separately.
+- **DERIVATION_VERSION = 3** captures both the `planId` field addition AND the new detector. Users must `pnpm rederive` — documented in the commit body. Rerun is idempotent (delete-then-insert scoped to `(userId, version)`).
+- **Detector context extended**: `planMap: Map<string, TradePlanRow>` pre-fetched by the runner per derivation run. Alternative (per-position lookups) would multiply DB queries; the Map is a single query.
+- **Playwright webServer** reuses the existing `pnpm dev` if already running (local iteration friendly); starts fresh in CI.
+- **Playwright test is non-destructive** to demo state — it fills a note textarea but demo blocks the save, so the test just verifies the textarea accepts input and moves on. Settings export button is checked for visibility only (doesn't actually download in the test).
+
+**Deferred from Phase 8**
+- **Auto plan→position matching** — Phase 9+ (needs a scoring rubric).
+- **Plan templates** (save a reusable plan shape, e.g. "breakout with 1.5R target") — out of MVP.
+- **Plan reminders** — "you haven't entered BTC yet; plan expires" via email. Requires per-plan expiry.
+- **Market-data candles** on fills timeline — Phase 9+ (needs market-data provider).
+- **Custom user-defined detectors (DSL)** — Phase 9 or Phase 10 — very complex.
+- **E2E CI wiring** — GitHub Actions workflow to run `pnpm e2e` on PR; own small task.
+- **Mobile plans UI** — desktop-first remains.
+- **Plan snapshots** — if user edits a plan after linking, the metric chips use the *current* plan (may not reflect the plan at link time). Fix by snapshotting plan values onto position at link-time.
+- **Partial-fill exit-slip accuracy** — `rMultiplePlanned` uses final `realizedPnl` over planned risk; multi-exit fills may not line up with the plan's target. Good enough for v1.
+
+---

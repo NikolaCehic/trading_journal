@@ -183,7 +183,7 @@ function LandingPage() {
     ['01', 'Sign in with Google', "No password, no wallet connect. We don't hold API keys.", 'check'],
     ['02', 'Import CSV or paste wallet', 'Binance CSV export or a Hyperliquid address. Auto-format detect.', 'upload'],
     ['03', 'Fills → positions', 'Weighted-avg entries, split exits, fee + slippage accounting.', 'refresh'],
-    ['04', 'Read your findings', '11 detectors, ranked by cost. Click any finding to see the trades.', 'trend'],
+    ['04', 'Read your findings', '12 detectors, ranked by cost. Click any finding to see the trades.', 'trend'],
   ]
 
   const principles: Array<[string, string]> = [
@@ -200,10 +200,10 @@ function LandingPage() {
       name: 'Free',
       price: '$0',
       cadence: '/ forever',
-      body: 'Up to 100 trades in history, CSV imports, 11 detectors, weekly digest.',
+      body: 'Up to 100 trades in history, CSV imports, 12 detectors, weekly digest.',
       cta: 'Start free',
       primary: false,
-      items: ['Binance + Hyperliquid + Bybit + OKX imports', '11 behavioral detectors', 'Trade notes + tags', 'Weekly digest'],
+      items: ['Binance + Hyperliquid + Bybit + OKX imports', '12 behavioral detectors', 'Trade notes + tags', 'Weekly digest'],
     },
     {
       name: 'Pro',
@@ -243,7 +243,7 @@ function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <TJBadge tone="accent">v0.3 · early access</TJBadge>
           <span style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}>
-            Updated Apr 22 — 11 detectors live
+            Updated Apr 22 — 12 detectors live
           </span>
         </div>
         <h1 style={{ fontSize: 64, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1.02, margin: 0, color: 'var(--fg)', maxWidth: 900 }}>
@@ -251,7 +251,7 @@ function LandingPage() {
           <span style={{ color: 'var(--fg-muted)' }}>that talks back.</span>
         </h1>
         <p style={{ fontSize: 17, color: 'var(--fg-muted)', maxWidth: 620, marginTop: 28, lineHeight: 1.55 }}>
-          Import your Binance, Hyperliquid, Bybit, or OKX trades. We merge fills into positions, run 11 behavioral detectors over your history, and surface the patterns you&apos;d miss. Direct, honest, no emoji.
+          Import your Binance, Hyperliquid, Bybit, or OKX trades. We merge fills into positions, run 12 behavioral detectors over your history, and surface the patterns you&apos;d miss. Direct, honest, no emoji.
         </p>
         <div style={{ display: 'flex', gap: 10, marginTop: 32, alignItems: 'center' }}>
           <button type="button" className="tj-btn tj-btn-primary" style={{ height: 40, padding: '0 18px', fontSize: 14 }} onClick={handleGoogle}>
@@ -419,7 +419,7 @@ function LandingPage() {
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 40 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
-                / The 11 detectors
+                / The 12 detectors
               </div>
               <h2 style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.1, maxWidth: 640, color: 'var(--fg)' }}>
                 Every pattern is deterministic and evidence-linked.
@@ -504,7 +504,7 @@ function LandingPage() {
               <tbody>
                 <CompareRow feature="Fills → positions, auto" spreadsheet="Manual" tv="Partial" us="Auto" />
                 <CompareRow feature="Spot + perps, one view" spreadsheet="—" tv="Venue-locked" us="Unified" />
-                <CompareRow feature="Behavioral pattern detection" spreadsheet="—" tv="—" us="11 detectors" />
+                <CompareRow feature="Behavioral pattern detection" spreadsheet="—" tv="—" us="12 detectors" />
                 <CompareRow feature="Evidence-linked findings" spreadsheet="—" tv="—" us="Per trade + fill" />
                 <CompareRow feature="Markdown notes per trade" spreadsheet="Kind of" tv="Textarea" us="Auto-save" />
                 <CompareRow feature="Weekly digest with one rule" spreadsheet="—" tv="—" us="Sunday 22:00" />
