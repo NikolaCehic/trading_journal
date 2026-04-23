@@ -1,12 +1,45 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Card, FindingCard, SeverityDot } from '~/components/tj/primitives'
-import { findings } from './mockData'
+import type { DashboardFinding } from '~/domain/dashboard'
+import type { FindingSeverity } from '~/domain/finding'
 import { adoptRule, archiveRule, getRuleViolationsThisWeek } from '~/server/rules'
 
 const RULE_TEXT = "After any loss >1%, don't open a position for 30 minutes."
 
-export function FindingsSidebar() {
+const DETECTOR_LABELS: Record<string, string> = {
+  revenge_trading: 'Revenge trading',
+  oversized_positions: 'Oversized positions',
+  loss_of_discipline_windows: 'Discipline windows',
+  position_sizing_instability: 'Sizing instability',
+  cut_winners_ride_losers: 'Cut winners, ride losers',
+  overtrading_after_losses: 'Overtrading after losses',
+  fee_drag: 'Fee drag',
+  scaling_into_losers: 'Scaling into losers',
+  short_hold_scalping: 'Short-hold scalping',
+  symbol_underperformance: 'Symbol underperformance',
+  leverage_creep: 'Leverage creep',
+}
+
+function severityToLevel(severity: FindingSeverity): 'red' | 'amber' | 'neutral' {
+  if (severity === 'critical') return 'red'
+  if (severity === 'warning') return 'amber'
+  return 'neutral'
+}
+
+function findingTitle(f: DashboardFinding): string {
+  return DETECTOR_LABELS[f.detectorId] ?? f.detectorId
+}
+
+function findingEvidence(f: DashboardFinding): string {
+  const full = f.bodyMarkdown
+  if (full.length <= 140) return full
+  return full.slice(0, 140) + '…'
+}
+
+type Props = { findings: DashboardFinding[] }
+
+export function FindingsSidebar({ findings }: Props) {
   const [adoptedRuleId, setAdoptedRuleId] = useState<string | null>(null)
 
   const adopt = useMutation({
@@ -29,8 +62,25 @@ export function FindingsSidebar() {
 
   const violations = violationsQuery.data?.violations ?? null
 
+  if (findings.length === 0) {
+    return (
+      <Card title="Findings" subtitle="0 active" style={{ overflow: 'hidden' }}>
+        <div
+          style={{
+            padding: '16px 14px',
+            fontSize: 13,
+            color: 'var(--fg-subtle)',
+          }}
+        >
+          No active findings.
+        </div>
+      </Card>
+    )
+  }
+
   const top = findings[0]!
   const rest = findings.slice(1)
+  const topLevel = severityToLevel(top.severity)
 
   return (
     <Card title="Findings" subtitle={`${findings.length} active`} style={{ overflow: 'hidden' }}>
@@ -43,11 +93,11 @@ export function FindingsSidebar() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <SeverityDot level={top.level} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{top.title}</div>
+            <SeverityDot level={topLevel} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{findingTitle(top)}</div>
           </div>
           <div style={{ fontSize: 12, color: 'var(--fg-subtle)', lineHeight: 1.5, marginLeft: 14 }}>
-            {top.evidence}
+            {findingEvidence(top)}
           </div>
 
           {!adoptedRuleId ? (
@@ -107,7 +157,12 @@ export function FindingsSidebar() {
 
         {/* Remaining findings */}
         {rest.map((f, i) => (
-          <FindingCard key={i + 1} level={f.level} title={f.title} evidence={f.evidence} />
+          <FindingCard
+            key={i + 1}
+            level={severityToLevel(f.severity)}
+            title={findingTitle(f)}
+            evidence={findingEvidence(f)}
+          />
         ))}
       </div>
     </Card>
