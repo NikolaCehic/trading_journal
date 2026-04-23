@@ -1,17 +1,23 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
 import { db } from '~/db/client'
+import type { DB } from '~/db/client'
 import {
-  summaryRollup, dailyMetric, assetMetric, sessionMetric, finding, position,
+  finding, position,
 } from '~/db/schema/derivation'
+import { positionFill } from '~/db/schema/derivation'
 import { fill } from '~/db/schema/canonical'
+import { positionTag } from '~/db/schema/journal'
 import { DERIVATION_VERSION } from '~/derivation/version'
 import { parseFilters, computeRange } from '~/lib/filters'
-import type { DashboardBundle, DashboardFinding, DashboardKpiDelta } from '~/domain/dashboard'
+import type { DashboardBundle, DashboardFilters, DashboardFinding, DashboardKpiDelta } from '~/domain/dashboard'
 import type { DetectorId } from '~/domain/finding'
+
+// PositionRow type inferred from schema
+type PositionRow = typeof position.$inferSelect
 
 const input = z.object({
   range: z.string().optional(),
@@ -27,10 +33,147 @@ function kpi(value: number, prior: number | null): DashboardKpiDelta {
   return { value, deltaPct: ((value - prior) / Math.abs(prior)) * 100 }
 }
 
-async function dbCount(table: Parameters<typeof db.$count>[0], where: Parameters<typeof db.$count>[1]): Promise<number> {
-  // Use drizzle built-in $count (available since drizzle-orm 0.36+)
-  return db.$count(table, where)
+// ---------------------------------------------------------------------------
+// resolveFilteredPositionIds
+// Fetches positions matching ALL active filters. If setupTagIds is non-empty,
+// performs an in-memory join (avoids selectDistinctOn which is PostgreSQL-specific
+// and not available on the neon-http drizzle adapter in unit tests).
+// ---------------------------------------------------------------------------
+
+async function resolveFilteredPositionIds(
+  dbInstance: DB,
+  userId: string,
+  filters: DashboardFilters,
+  overrideRange?: { start: Date | null; end: Date | null },
+): Promise<{ ids: string[]; positionRows: PositionRow[] }> {
+  const { start, end } = overrideRange ?? resolveRange(filters)
+
+  const where = [
+    eq(position.userId, userId),
+    eq(position.derivationVersion, DERIVATION_VERSION),
+  ]
+  if (filters.symbols.length > 0) where.push(inArray(position.symbol, filters.symbols))
+  if (filters.instrument !== 'all') where.push(eq(position.instrumentType, filters.instrument))
+  if (start) where.push(gte(position.openedAt, start))
+  if (end)   where.push(lte(position.openedAt, end))
+
+  const positionRows = await dbInstance.select().from(position).where(and(...where))
+
+  if (filters.setupTagIds.length === 0) {
+    const ids = positionRows.map(r => r.id)
+    return { ids, positionRows }
+  }
+
+  // Restrict to positions that have at least one matching setup tag
+  const ids = positionRows.map(r => r.id)
+  if (ids.length === 0) return { ids: [], positionRows: [] }
+
+  const tagRows = await dbInstance
+    .select({ positionId: positionTag.positionId })
+    .from(positionTag)
+    .where(
+      and(
+        inArray(positionTag.positionId, ids),
+        eq(positionTag.kind, 'setup'),
+        inArray(positionTag.setupTagId, filters.setupTagIds),
+      ),
+    )
+
+  const matchedIds = new Set(tagRows.map(r => r.positionId))
+  const filteredRows = positionRows.filter(r => matchedIds.has(r.id))
+  return { ids: [...matchedIds], positionRows: filteredRows }
 }
+
+// ---------------------------------------------------------------------------
+// resolveRange — derive { start, end } from DashboardFilters
+// ---------------------------------------------------------------------------
+
+function resolveRange(filters: DashboardFilters): { start: Date | null; end: Date | null } {
+  const now = new Date()
+  if (filters.timeRange === 'all') return { start: null, end: null }
+  const { from, to } = computeRange(filters, now)
+  return { start: from, end: to }
+}
+
+// ---------------------------------------------------------------------------
+// Compute helpers operating on PositionRow[]
+// ---------------------------------------------------------------------------
+
+function computePnl(rows: PositionRow[]): number {
+  return rows.reduce((a, r) => a + Number(r.realizedPnl), 0)
+}
+
+function computeWinRate(rows: PositionRow[]): number {
+  if (rows.length === 0) return 0
+  const wins = rows.filter(r => Number(r.realizedPnl) > 0).length
+  return wins / rows.length
+}
+
+function computeExpectancy(rows: PositionRow[]): number {
+  if (rows.length === 0) return 0
+  return computePnl(rows) / rows.length
+}
+
+function computeMaxDrawdown(rows: PositionRow[]): number {
+  // Sort by closedAt (then openedAt) to get a sensible time sequence
+  const sorted = [...rows].sort((a, b) => {
+    const aTime = (a.closedAt ?? a.openedAt).getTime()
+    const bTime = (b.closedAt ?? b.openedAt).getTime()
+    return aTime - bTime
+  })
+  let peak = 0
+  let cum = 0
+  let maxDD = 0
+  for (const r of sorted) {
+    cum += Number(r.realizedPnl)
+    if (cum > peak) peak = cum
+    const dd = peak - cum
+    if (dd > maxDD) maxDD = dd
+  }
+  return maxDD
+}
+
+function computeSummary(rows: PositionRow[]) {
+  const wins = rows.filter(r => Number(r.realizedPnl) > 0)
+  const losses = rows.filter(r => Number(r.realizedPnl) < 0)
+  const totalPnl = computePnl(rows)
+  const grossProfit = wins.reduce((a, r) => a + Number(r.realizedPnl), 0)
+  const grossLoss = Math.abs(losses.reduce((a, r) => a + Number(r.realizedPnl), 0))
+  const totalFees = rows.reduce((a, r) => a + Number(r.totalFees), 0)
+  const winRate = rows.length === 0 ? 0 : wins.length / rows.length
+  const expectancy = computeExpectancy(rows)
+  const avgWin = wins.length === 0 ? 0 : grossProfit / wins.length
+  const avgLoss = losses.length === 0 ? 0 : grossLoss / losses.length
+  const profitFactor = grossLoss === 0 ? null : grossProfit / grossLoss
+
+  // Median position size USD
+  const sorted = [...rows].map(r => Number(r.notionalUsd)).sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  const medianPositionSizeUsd = sorted.length === 0
+    ? 0
+    : sorted.length % 2 === 0
+      ? ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
+      : (sorted[mid] ?? 0)
+
+  return {
+    totalPnl,
+    grossProfit,
+    grossLoss: -grossLoss, // store as negative for consistency with old rollup (gross loss was stored as negative)
+    totalFees,
+    winRate,
+    expectancy,
+    avgWin,
+    avgLoss: -avgLoss,
+    profitFactor,
+    maxDrawdown: computeMaxDrawdown(rows),
+    tradeCount: rows.length,
+    medianPositionSizeUsd,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main server function
+// ---------------------------------------------------------------------------
 
 export const getDashboardBundle = createServerFn({ method: 'GET' })
   .inputValidator((d: unknown) => input.parse(d))
@@ -40,152 +183,235 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
     const userId = session.user.id
     const now = new Date()
     const filters = parseFilters(data as Record<string, string>)
-    const { from, to } = computeRange(filters, now)
     const version = DERIVATION_VERSION
 
-    // Summary rollup for this user/version
-    const summaryRow = await db.query.summaryRollup.findFirst({
-      where: and(eq(summaryRollup.userId, userId), eq(summaryRollup.derivationVersion, version)),
+    // -----------------------------------------------------------------------
+    // 1. Current-period filtered positions
+    // -----------------------------------------------------------------------
+    const { positionRows } = await resolveFilteredPositionIds(db, userId, filters)
+
+    // -----------------------------------------------------------------------
+    // 2. Prior-period filtered positions (same filters, shifted time window)
+    // -----------------------------------------------------------------------
+    const { from, to } = computeRange(filters, now)
+    const priorWindowMs = to.getTime() - from.getTime()
+    const priorEnd = from
+    const priorStart = new Date(from.getTime() - priorWindowMs)
+    const { positionRows: priorRows } = await resolveFilteredPositionIds(db, userId, filters, {
+      start: priorStart,
+      end: priorEnd,
     })
+    const hasPrior = priorRows.length > 0
 
-    // Daily rows in range (timeRange filter is honoured here via date bounds)
-    // TODO: symbol/instrument/setupTag filters in Phase 6 via per-filter rollups
-    const dailyRows = await db.select().from(dailyMetric).where(
-      and(
-        eq(dailyMetric.userId, userId),
-        eq(dailyMetric.derivationVersion, version),
-        gte(dailyMetric.date, from.toISOString().slice(0, 10)),
-        lte(dailyMetric.date, to.toISOString().slice(0, 10)),
-      ),
-    ).orderBy(dailyMetric.date)
+    // -----------------------------------------------------------------------
+    // 3. KPIs
+    // -----------------------------------------------------------------------
+    const curPnl = computePnl(positionRows)
+    const priorPnl = computePnl(priorRows)
+    const curWinRate = computeWinRate(positionRows)
+    const priorWinRate = computeWinRate(priorRows)
+    const curExpectancy = computeExpectancy(positionRows)
+    const priorExpectancy = computeExpectancy(priorRows)
+    const curCount = positionRows.length
+    const priorCount = priorRows.length
+    const curMaxDD = computeMaxDrawdown(positionRows)
+    const priorMaxDD = computeMaxDrawdown(priorRows)
 
-    // Prior-period daily rows for KPI deltas (window of same length ending at `from`)
-    const priorFromMs = from.getTime() - (to.getTime() - from.getTime())
-    const priorFrom = new Date(priorFromMs)
-    const priorDailyRows = await db.select().from(dailyMetric).where(
-      and(
-        eq(dailyMetric.userId, userId),
-        eq(dailyMetric.derivationVersion, version),
-        gte(dailyMetric.date, priorFrom.toISOString().slice(0, 10)),
-        lte(dailyMetric.date, from.toISOString().slice(0, 10)),
-      ),
-    )
-
-    const assetRows = await db.select().from(assetMetric).where(
-      and(eq(assetMetric.userId, userId), eq(assetMetric.derivationVersion, version)),
-    ).orderBy(desc(assetMetric.realizedPnl))
-
-    const sessionRows = await db.select().from(sessionMetric).where(
-      and(eq(sessionMetric.userId, userId), eq(sessionMetric.derivationVersion, version)),
-    ).orderBy(sessionMetric.hourOfDayUtc)
-
-    const topFindings = await db.select().from(finding).where(
-      and(eq(finding.userId, userId), eq(finding.derivationVersion, version)),
-    ).orderBy(desc(finding.createdAt)).limit(5)
-
-    const totalFillCount = await dbCount(fill, eq(fill.userId, userId))
-    const totalPositionCount = await dbCount(
-      position,
-      and(eq(position.userId, userId), eq(position.derivationVersion, version)),
-    )
-
-    // Heatmap: reuse sessionBreakdown for hour axis. Day-of-week axis requires a second pass
-    // grouped by day-of-week. For v1, include hour only (dayOfWeek set to 0 as placeholder); a
-    // later task can enrich this via a new derived table. Chart renders a 1-row strip for now.
-    const heatmap = sessionRows.map(s => ({
-      hourOfDayUtc: s.hourOfDayUtc,
-      dayOfWeekUtc: 0,
-      tradeCount: s.tradeCount,
-      expectancy: Number(s.expectancy),
-    }))
-
-    // KPI helpers operating on daily row arrays
-    const sumPnl = (rows: typeof dailyRows) => rows.reduce((a, b) => a + Number(b.realizedPnl), 0)
-    const sumCount = (rows: typeof dailyRows) => rows.reduce((a, b) => a + b.tradeCount, 0)
-    const winRate = (rows: typeof dailyRows) => {
-      const w = rows.reduce((a, b) => a + b.winCount, 0)
-      const total = rows.reduce((a, b) => a + b.winCount + b.lossCount, 0)
-      return total === 0 ? 0 : w / total
+    // -----------------------------------------------------------------------
+    // 4. Equity curve — running sum of realizedPnl per day across filtered positions
+    // -----------------------------------------------------------------------
+    const pnlByDay = new Map<string, number>()
+    for (const r of positionRows) {
+      const date = (r.closedAt ?? r.openedAt).toISOString().slice(0, 10)
+      pnlByDay.set(date, (pnlByDay.get(date) ?? 0) + Number(r.realizedPnl))
     }
-    const expectancy = (rows: typeof dailyRows) => {
-      const pnl = sumPnl(rows)
-      const count = sumCount(rows)
-      return count === 0 ? 0 : pnl / count
-    }
-
-    const curPnl = sumPnl(dailyRows)
-    const priorPnl = sumPnl(priorDailyRows)
-    const curCount = sumCount(dailyRows)
-    const priorCount = sumCount(priorDailyRows)
-    const hasPrior = priorDailyRows.length > 0
-
-    // Equity curve = cumulative sum of daily realizedPnl within the filter range
+    const sortedDays = [...pnlByDay.keys()].sort()
     let cum = 0
-    const equityCurve = dailyRows.map(r => {
-      cum += Number(r.realizedPnl)
-      return { date: r.date, cumulativePnl: cum }
+    const equityCurve = sortedDays.map(date => {
+      cum += pnlByDay.get(date)!
+      return { date, cumulativePnl: cum }
     })
 
-    // Sparkline = last 30 days independent of the filter range (so tiles always have a trend line)
+    // -----------------------------------------------------------------------
+    // 5. Sparkline — last 30 days (unfiltered by symbol/instrument/tag, just time)
+    //    Uses the same filtered positions but restricts to last 30 days window.
+    //    For simplicity, we compute from positionRows already in-range (the
+    //    time range filter already applied), but limit to last 30 days.
+    // -----------------------------------------------------------------------
     const last30Start = new Date(now.getTime() - 30 * 86_400_000)
-    const sparkRows = await db.select().from(dailyMetric).where(
-      and(
-        eq(dailyMetric.userId, userId),
-        eq(dailyMetric.derivationVersion, version),
-        gte(dailyMetric.date, last30Start.toISOString().slice(0, 10)),
-      ),
-    ).orderBy(dailyMetric.date)
-    let sparkCum = 0
-    const sparkline = sparkRows.map(r => {
-      sparkCum += Number(r.realizedPnl)
-      return { date: r.date, pnl: Number(r.realizedPnl), cumulativePnl: sparkCum }
+    const sparkRows = positionRows.filter(r => {
+      const t = (r.closedAt ?? r.openedAt).getTime()
+      return t >= last30Start.getTime()
     })
+    const sparkByDay = new Map<string, number>()
+    for (const r of sparkRows) {
+      const date = (r.closedAt ?? r.openedAt).toISOString().slice(0, 10)
+      sparkByDay.set(date, (sparkByDay.get(date) ?? 0) + Number(r.realizedPnl))
+    }
+    const sparkDays = [...sparkByDay.keys()].sort()
+    let sparkCum = 0
+    const sparkline = sparkDays.map(date => {
+      const pnl = sparkByDay.get(date)!
+      sparkCum += pnl
+      return { date, pnl, cumulativePnl: sparkCum }
+    })
+
+    // -----------------------------------------------------------------------
+    // 6. Heatmap — aggregate per (hourOfDayUtc, dayOfWeekUtc) from closed positions
+    // -----------------------------------------------------------------------
+    type HeatKey = `${number}:${number}`
+    const heatMap = new Map<HeatKey, { pnlSum: number; count: number }>()
+    for (const r of positionRows) {
+      if (!r.closedAt) continue
+      const h = r.closedAt.getUTCHours()
+      const d = r.closedAt.getUTCDay()
+      const key: HeatKey = `${h}:${d}`
+      const cell = heatMap.get(key) ?? { pnlSum: 0, count: 0 }
+      cell.pnlSum += Number(r.realizedPnl)
+      cell.count += 1
+      heatMap.set(key, cell)
+    }
+    const heatmap: DashboardBundle['heatmap'] = []
+    for (const [key, cell] of heatMap.entries()) {
+      const [h, d] = key.split(':').map(Number)
+      heatmap.push({
+        hourOfDayUtc: h!,
+        dayOfWeekUtc: d!,
+        tradeCount: cell.count,
+        expectancy: cell.count === 0 ? 0 : cell.pnlSum / cell.count,
+      })
+    }
+    heatmap.sort((a, b) => a.dayOfWeekUtc - b.dayOfWeekUtc || a.hourOfDayUtc - b.hourOfDayUtc)
+
+    // -----------------------------------------------------------------------
+    // 7. Asset breakdown — group by symbol
+    // -----------------------------------------------------------------------
+    const assetMap = new Map<string, { rows: PositionRow[] }>()
+    for (const r of positionRows) {
+      const entry = assetMap.get(r.symbol) ?? { rows: [] }
+      entry.rows.push(r)
+      assetMap.set(r.symbol, entry)
+    }
+    const assetBreakdown: DashboardBundle['assetBreakdown'] = []
+    for (const [symbol, { rows: aRows }] of assetMap.entries()) {
+      const wins = aRows.filter(r => Number(r.realizedPnl) > 0)
+      const losses = aRows.filter(r => Number(r.realizedPnl) < 0)
+      const symPnl = computePnl(aRows)
+      const symWinRate = aRows.length === 0 ? 0 : wins.length / aRows.length
+      const grossProfit = wins.reduce((a, r) => a + Number(r.realizedPnl), 0)
+      const grossLoss = Math.abs(losses.reduce((a, r) => a + Number(r.realizedPnl), 0))
+      const avgWin = wins.length === 0 ? 0 : grossProfit / wins.length
+      const avgLoss = losses.length === 0 ? 0 : grossLoss / losses.length
+      const symExpectancy = aRows.length === 0 ? 0 : symPnl / aRows.length
+      assetBreakdown.push({
+        symbol,
+        tradeCount: aRows.length,
+        realizedPnl: symPnl,
+        winRate: symWinRate,
+        avgWin,
+        avgLoss: -avgLoss,
+        expectancy: symExpectancy,
+      })
+    }
+    assetBreakdown.sort((a, b) => Math.abs(b.realizedPnl) - Math.abs(a.realizedPnl))
+
+    // -----------------------------------------------------------------------
+    // 8. Session breakdown — aggregate per hour of day
+    // -----------------------------------------------------------------------
+    const sessionMap = new Map<number, { pnlSum: number; count: number; wins: number }>()
+    for (const r of positionRows) {
+      if (!r.closedAt) continue
+      const h = r.closedAt.getUTCHours()
+      const entry = sessionMap.get(h) ?? { pnlSum: 0, count: 0, wins: 0 }
+      entry.pnlSum += Number(r.realizedPnl)
+      entry.count += 1
+      if (Number(r.realizedPnl) > 0) entry.wins += 1
+      sessionMap.set(h, entry)
+    }
+    const sessionBreakdown: DashboardBundle['sessionBreakdown'] = []
+    for (const [hour, s] of sessionMap.entries()) {
+      sessionBreakdown.push({
+        hourOfDayUtc: hour,
+        tradeCount: s.count,
+        realizedPnl: s.pnlSum,
+        winRate: s.count === 0 ? 0 : s.wins / s.count,
+        expectancy: s.count === 0 ? 0 : s.pnlSum / s.count,
+      })
+    }
+    sessionBreakdown.sort((a, b) => a.hourOfDayUtc - b.hourOfDayUtc)
+
+    // -----------------------------------------------------------------------
+    // 9. Top findings — restrict to findings that reference any filtered position
+    // -----------------------------------------------------------------------
+    const ids = positionRows.map(r => r.id)
+    let topFindingsRaw: (typeof finding.$inferSelect)[] = []
+    if (ids.length > 0) {
+      // Find all findings where at least one of the filtered position IDs is referenced
+      // We fetch all findings for the user/version and filter in JS (avoids PG array overlap)
+      const allFindings = await db.select().from(finding).where(
+        and(eq(finding.userId, userId), eq(finding.derivationVersion, version)),
+      ).orderBy(desc(finding.createdAt))
+
+      const idSet = new Set(ids)
+      topFindingsRaw = allFindings
+        .filter(f => f.referencedPositionIds.some(pid => idSet.has(pid)))
+        .sort((a, b) => {
+          const severityOrder = { critical: 0, warning: 1, info: 2 }
+          const sA = severityOrder[a.severity] ?? 3
+          const sB = severityOrder[b.severity] ?? 3
+          if (sA !== sB) return sA - sB
+          return b.createdAt.getTime() - a.createdAt.getTime()
+        })
+        .slice(0, 5)
+    }
+
+    // -----------------------------------------------------------------------
+    // 10. Meta counts — fills for filtered positions
+    // -----------------------------------------------------------------------
+    let totalFillCount = 0
+    if (ids.length > 0) {
+      const pfRows = await db.select({ fillId: positionFill.fillId })
+        .from(positionFill)
+        .where(inArray(positionFill.positionId, ids))
+      totalFillCount = pfRows.length
+    }
+    const totalPositionCount = positionRows.length
+
+    // -----------------------------------------------------------------------
+    // 11. Summary
+    // -----------------------------------------------------------------------
+    const summaryRaw = computeSummary(positionRows)
+    const summary = {
+      totalPnl: summaryRaw.totalPnl,
+      grossProfit: summaryRaw.grossProfit,
+      grossLoss: summaryRaw.grossLoss,
+      totalFees: summaryRaw.totalFees,
+      winRate: summaryRaw.winRate,
+      expectancy: summaryRaw.expectancy,
+      avgWin: summaryRaw.avgWin,
+      avgLoss: summaryRaw.avgLoss,
+      profitFactor: summaryRaw.profitFactor,
+      maxDrawdown: summaryRaw.maxDrawdown,
+      tradeCount: summaryRaw.tradeCount,
+      medianPositionSizeUsd: summaryRaw.medianPositionSizeUsd,
+    }
 
     return {
       filters,
-      summary: summaryRow
-        ? {
-            totalPnl: Number(summaryRow.totalPnl),
-            grossProfit: Number(summaryRow.grossProfit),
-            grossLoss: Number(summaryRow.grossLoss),
-            totalFees: Number(summaryRow.totalFees),
-            winRate: Number(summaryRow.winRate),
-            expectancy: Number(summaryRow.expectancy),
-            avgWin: Number(summaryRow.avgWin),
-            avgLoss: Number(summaryRow.avgLoss),
-            profitFactor: summaryRow.profitFactor != null ? Number(summaryRow.profitFactor) : null,
-            maxDrawdown: Number(summaryRow.maxDrawdown),
-            tradeCount: summaryRow.tradeCount,
-            medianPositionSizeUsd: Number(summaryRow.medianPositionSizeUsd),
-          }
-        : emptySummary(),
+      summary,
       kpis: {
-        realizedPnl: kpi(curPnl, hasPrior ? priorPnl : null),
-        winRate:     kpi(winRate(dailyRows), hasPrior ? winRate(priorDailyRows) : null),
-        expectancy:  kpi(expectancy(dailyRows), hasPrior ? expectancy(priorDailyRows) : null),
-        tradeCount:  kpi(curCount, hasPrior ? priorCount : null),
-        maxDrawdown: kpi(Number(summaryRow?.maxDrawdown ?? 0), null),
+        realizedPnl: kpi(curPnl,       hasPrior ? priorPnl       : null),
+        winRate:     kpi(curWinRate,    hasPrior ? priorWinRate    : null),
+        expectancy:  kpi(curExpectancy, hasPrior ? priorExpectancy : null),
+        tradeCount:  kpi(curCount,      hasPrior ? priorCount      : null),
+        maxDrawdown: kpi(curMaxDD,      hasPrior ? priorMaxDD      : null),
       },
       sparkline,
       equityCurve,
       heatmap,
-      assetBreakdown: assetRows.map(r => ({
-        symbol: r.symbol,
-        tradeCount: r.tradeCount,
-        realizedPnl: Number(r.realizedPnl),
-        winRate: Number(r.winRate),
-        avgWin: Number(r.avgWin),
-        avgLoss: Number(r.avgLoss),
-        expectancy: Number(r.expectancy),
-      })),
-      sessionBreakdown: sessionRows.map(r => ({
-        hourOfDayUtc: r.hourOfDayUtc,
-        tradeCount: r.tradeCount,
-        realizedPnl: Number(r.realizedPnl),
-        winRate: Number(r.winRate),
-        expectancy: Number(r.expectancy),
-      })),
-      topFindings: topFindings.map(f => ({
+      assetBreakdown,
+      sessionBreakdown,
+      topFindings: topFindingsRaw.map(f => ({
         id: f.id,
         userId: f.userId,
         detectorId: f.detectorId as DetectorId,
@@ -201,7 +427,7 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
       meta: {
         totalFillCount,
         totalPositionCount,
-        lastDerivationAt: summaryRow?.updatedAt ?? null,
+        lastDerivationAt: null,
         derivationVersion: version,
       },
     }
@@ -217,3 +443,8 @@ function emptySummary() {
 
 // Re-export sql for potential downstream use (avoids re-importing drizzle-orm)
 export { sql }
+
+// ---------------------------------------------------------------------------
+// Export helpers for testing
+// ---------------------------------------------------------------------------
+export { resolveFilteredPositionIds, resolveRange, computePnl, computeWinRate, computeExpectancy, computeMaxDrawdown, computeSummary }
