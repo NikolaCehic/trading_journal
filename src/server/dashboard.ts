@@ -1,5 +1,5 @@
-import { createServerFn } from '@tanstack/start-client-core'
-import { getWebRequest } from 'vinxi/http'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
@@ -35,7 +35,7 @@ async function dbCount(table: Parameters<typeof db.$count>[0], where: Parameters
 export const getDashboardBundle = createServerFn({ method: 'GET' })
   .inputValidator((d: unknown) => input.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
     const userId = session.user.id
     const now = new Date()

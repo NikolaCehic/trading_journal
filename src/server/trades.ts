@@ -1,5 +1,5 @@
-import { createServerFn } from '@tanstack/start-client-core'
-import { getWebRequest } from 'vinxi/http'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { and, desc, eq, gte, inArray, lte, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
@@ -44,7 +44,7 @@ export type TradeListRow = {
 export const getTradeList = createServerFn({ method: 'GET' })
   .inputValidator((d: unknown) => listInput.parse(d))
   .handler(async ({ data }): Promise<{ rows: TradeListRow[]; total: number }> => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
     const userId = session.user.id
 
@@ -136,7 +136,7 @@ export type TradeDetailBundle = {
 export const getTradeDetail = createServerFn({ method: 'GET' })
   .inputValidator((d: unknown) => detailInput.parse(d))
   .handler(async ({ data }): Promise<TradeDetailBundle> => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
     const userId = session.user.id
 

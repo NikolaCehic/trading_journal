@@ -10,32 +10,30 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
+import { Route as ApiInngestRouteImport } from './routes/api/inngest'
+import { Route as ApiDemoRouteImport } from './routes/api/demo'
 import { Route as publicLoginRouteImport } from './routes/(public)/login'
-import { Route as appDashboardRouteImport } from './routes/(app)/dashboard'
-import { Route as appImportRouteImport } from './routes/(app)/import'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
-import { Route as appTradesIndexRouteImport } from './routes/(app)/trades/index'
-import { Route as appTradesPositionIdRouteImport } from './routes/(app)/trades/$positionId'
-import { Route as appDigestIndexRouteImport } from './routes/(app)/digest/index'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as appLayoutImportRouteImport } from './routes/(app)/_layout/import'
+import { Route as appLayoutDashboardRouteImport } from './routes/(app)/_layout/dashboard'
+import { Route as appLayoutTradesIndexRouteImport } from './routes/(app)/_layout/trades/index'
+import { Route as appLayoutDigestIndexRouteImport } from './routes/(app)/_layout/digest/index'
+import { Route as appLayoutTradesPositionIdRouteImport } from './routes/(app)/_layout/trades/$positionId'
 
-const appTradesIndexRoute = appTradesIndexRouteImport.update({
-  id: '/(app)/trades/',
-  path: '/trades',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const appTradesPositionIdRoute = appTradesPositionIdRouteImport.update({
-  id: '/(app)/trades/$positionId',
-  path: '/trades/$positionId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const appDigestIndexRoute = appDigestIndexRouteImport.update({
-  id: '/(app)/digest/',
-  path: '/digest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/(public)/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInngestRoute = ApiInngestRouteImport.update({
+  id: '/api/inngest',
+  path: '/api/inngest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDemoRoute = ApiDemoRouteImport.update({
+  id: '/api/demo',
+  path: '/api/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const publicLoginRoute = publicLoginRouteImport.update({
@@ -43,76 +41,127 @@ const publicLoginRoute = publicLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const appDashboardRoute = appDashboardRouteImport.update({
-  id: '/(app)/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const appImportRoute = appImportRouteImport.update({
-  id: '/(app)/import',
-  path: '/import',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const appLayoutRoute = appLayoutRouteImport.update({
   id: '/(app)/_layout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const appLayoutImportRoute = appLayoutImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutDashboardRoute = appLayoutDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutTradesIndexRoute = appLayoutTradesIndexRouteImport.update({
+  id: '/trades/',
+  path: '/trades/',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutDigestIndexRoute = appLayoutDigestIndexRouteImport.update({
+  id: '/digest/',
+  path: '/digest/',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutTradesPositionIdRoute =
+  appLayoutTradesPositionIdRouteImport.update({
+    id: '/trades/$positionId',
+    path: '/trades/$positionId',
+    getParentRoute: () => appLayoutRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/dashboard': typeof appDashboardRoute
-  '/import': typeof appImportRoute
-  '/trades': typeof appTradesIndexRoute
-  '/trades/$positionId': typeof appTradesPositionIdRoute
-  '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
+  '/api/demo': typeof ApiDemoRoute
+  '/api/inngest': typeof ApiInngestRoute
   '/': typeof publicIndexRoute
+  '/dashboard': typeof appLayoutDashboardRoute
+  '/import': typeof appLayoutImportRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/digest/': typeof appLayoutDigestIndexRoute
+  '/trades/': typeof appLayoutTradesIndexRoute
 }
 export interface FileRoutesByTo {
-  '/dashboard': typeof appDashboardRoute
-  '/import': typeof appImportRoute
-  '/trades': typeof appTradesIndexRoute
-  '/trades/$positionId': typeof appTradesPositionIdRoute
-  '/digest': typeof appDigestIndexRoute
   '/login': typeof publicLoginRoute
+  '/api/demo': typeof ApiDemoRoute
+  '/api/inngest': typeof ApiInngestRoute
   '/': typeof publicIndexRoute
+  '/dashboard': typeof appLayoutDashboardRoute
+  '/import': typeof appLayoutImportRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/digest': typeof appLayoutDigestIndexRoute
+  '/trades': typeof appLayoutTradesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/(app)/_layout': typeof appLayoutRoute
-  '/(app)/dashboard': typeof appDashboardRoute
-  '/(app)/import': typeof appImportRoute
-  '/(app)/trades/': typeof appTradesIndexRoute
-  '/(app)/trades/$positionId': typeof appTradesPositionIdRoute
-  '/(app)/digest/': typeof appDigestIndexRoute
+  '/(app)/_layout': typeof appLayoutRouteWithChildren
   '/(public)/login': typeof publicLoginRoute
+  '/api/demo': typeof ApiDemoRoute
+  '/api/inngest': typeof ApiInngestRoute
   '/(public)/': typeof publicIndexRoute
+  '/(app)/_layout/dashboard': typeof appLayoutDashboardRoute
+  '/(app)/_layout/import': typeof appLayoutImportRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/(app)/_layout/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/(app)/_layout/digest/': typeof appLayoutDigestIndexRoute
+  '/(app)/_layout/trades/': typeof appLayoutTradesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/import' | '/trades' | '/trades/$positionId' | '/digest' | '/login' | '/'
+  fullPaths:
+    | '/login'
+    | '/api/demo'
+    | '/api/inngest'
+    | '/'
+    | '/dashboard'
+    | '/import'
+    | '/api/auth/$'
+    | '/trades/$positionId'
+    | '/digest/'
+    | '/trades/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dashboard' | '/import' | '/trades' | '/trades/$positionId' | '/digest' | '/login' | '/'
+  to:
+    | '/login'
+    | '/api/demo'
+    | '/api/inngest'
+    | '/'
+    | '/dashboard'
+    | '/import'
+    | '/api/auth/$'
+    | '/trades/$positionId'
+    | '/digest'
+    | '/trades'
   id:
     | '__root__'
     | '/(app)/_layout'
-    | '/(app)/dashboard'
-    | '/(app)/import'
-    | '/(app)/trades/'
-    | '/(app)/trades/$positionId'
-    | '/(app)/digest/'
     | '/(public)/login'
+    | '/api/demo'
+    | '/api/inngest'
     | '/(public)/'
+    | '/(app)/_layout/dashboard'
+    | '/(app)/_layout/import'
+    | '/api/auth/$'
+    | '/(app)/_layout/trades/$positionId'
+    | '/(app)/_layout/digest/'
+    | '/(app)/_layout/trades/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  appLayoutRoute: typeof appLayoutRoute
-  appDashboardRoute: typeof appDashboardRoute
-  appImportRoute: typeof appImportRoute
-  appTradesIndexRoute: typeof appTradesIndexRoute
-  appTradesPositionIdRoute: typeof appTradesPositionIdRoute
-  appDigestIndexRoute: typeof appDigestIndexRoute
+  appLayoutRoute: typeof appLayoutRouteWithChildren
   publicLoginRoute: typeof publicLoginRoute
+  ApiDemoRoute: typeof ApiDemoRoute
+  ApiInngestRoute: typeof ApiInngestRoute
   publicIndexRoute: typeof publicIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -124,25 +173,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof publicIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/inngest': {
+      id: '/api/inngest'
+      path: '/api/inngest'
+      fullPath: '/api/inngest'
+      preLoaderRoute: typeof ApiInngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/demo': {
+      id: '/api/demo'
+      path: '/api/demo'
+      fullPath: '/api/demo'
+      preLoaderRoute: typeof ApiDemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(public)/login': {
       id: '/(public)/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof publicLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(app)/dashboard': {
-      id: '/(app)/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof appDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(app)/import': {
-      id: '/(app)/import'
-      path: '/import'
-      fullPath: '/import'
-      preLoaderRoute: typeof appImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(app)/_layout': {
@@ -152,40 +201,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(app)/trades/': {
-      id: '/(app)/trades/'
-      path: '/trades'
-      fullPath: '/trades'
-      preLoaderRoute: typeof appTradesIndexRouteImport
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/(app)/trades/$positionId': {
-      id: '/(app)/trades/$positionId'
+    '/(app)/_layout/import': {
+      id: '/(app)/_layout/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof appLayoutImportRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/dashboard': {
+      id: '/(app)/_layout/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof appLayoutDashboardRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/trades/': {
+      id: '/(app)/_layout/trades/'
+      path: '/trades'
+      fullPath: '/trades/'
+      preLoaderRoute: typeof appLayoutTradesIndexRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/digest/': {
+      id: '/(app)/_layout/digest/'
+      path: '/digest'
+      fullPath: '/digest/'
+      preLoaderRoute: typeof appLayoutDigestIndexRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/trades/$positionId': {
+      id: '/(app)/_layout/trades/$positionId'
       path: '/trades/$positionId'
       fullPath: '/trades/$positionId'
-      preLoaderRoute: typeof appTradesPositionIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(app)/digest/': {
-      id: '/(app)/digest/'
-      path: '/digest'
-      fullPath: '/digest'
-      preLoaderRoute: typeof appDigestIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof appLayoutTradesPositionIdRouteImport
+      parentRoute: typeof appLayoutRoute
     }
   }
 }
 
+interface appLayoutRouteChildren {
+  appLayoutDashboardRoute: typeof appLayoutDashboardRoute
+  appLayoutImportRoute: typeof appLayoutImportRoute
+  appLayoutTradesPositionIdRoute: typeof appLayoutTradesPositionIdRoute
+  appLayoutDigestIndexRoute: typeof appLayoutDigestIndexRoute
+  appLayoutTradesIndexRoute: typeof appLayoutTradesIndexRoute
+}
+
+const appLayoutRouteChildren: appLayoutRouteChildren = {
+  appLayoutDashboardRoute: appLayoutDashboardRoute,
+  appLayoutImportRoute: appLayoutImportRoute,
+  appLayoutTradesPositionIdRoute: appLayoutTradesPositionIdRoute,
+  appLayoutDigestIndexRoute: appLayoutDigestIndexRoute,
+  appLayoutTradesIndexRoute: appLayoutTradesIndexRoute,
+}
+
+const appLayoutRouteWithChildren = appLayoutRoute._addFileChildren(
+  appLayoutRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  appLayoutRoute: appLayoutRoute,
-  appDashboardRoute: appDashboardRoute,
-  appImportRoute: appImportRoute,
-  appTradesIndexRoute: appTradesIndexRoute,
-  appTradesPositionIdRoute: appTradesPositionIdRoute,
-  appDigestIndexRoute: appDigestIndexRoute,
+  appLayoutRoute: appLayoutRouteWithChildren,
   publicLoginRoute: publicLoginRoute,
+  ApiDemoRoute: ApiDemoRoute,
+  ApiInngestRoute: ApiInngestRoute,
   publicIndexRoute: publicIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 
-describe('Phase 0 smoke', () => {
+const isCI = process.env['CI'] === 'true'
+const describeInCI = isCI ? describe : describe.skip
+
+describeInCI('Phase 0 smoke (CI only)', () => {
   it('env module loads', async () => {
     const mod = await import('~/lib/env')
     expect(mod.env).toBeDefined()

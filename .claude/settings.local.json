@@ -36,7 +36,31 @@
       "Read(//tmp/**)",
       "Bash(pnpm tsc *)",
       "Bash(npx tsx *)",
-      "Bash(pnpm rederive *)"
+      "Bash(pnpm rederive *)",
+      "Bash(npm view *)",
+      "WebFetch(domain:tanstack.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/TanStack/router/main/examples/react/start-basic/src/router.tsx)",
+      "Bash(curl -s https://raw.githubusercontent.com/TanStack/router/main/examples/react/start-basic/tsconfig.json)",
+      "Bash(lsof -ti:3000)",
+      "Bash(curl -s -o /dev/null -w \"/=%{http_code} login=%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"login=%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"/=%{http_code} dashboard=%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"/=%{http_code} login=%{http_code} dash=%{http_code} trades=%{http_code} t01=%{http_code} import=%{http_code} digest=%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"\" -o /tmp/e.log \"http://localhost:3000/dashboard\")",
+      "Bash(/usr/bin/tail -30 /private/tmp/claude-501/-Users-nikolacehic-Desktop-trade-journal/6bccb8e9-58df-483a-9564-5c3aaafbd323/tasks/b3vqcx359.output)",
+      "Bash(/usr/bin/grep -iE \"error|warning|cannot|missing\")",
+      "Bash(/usr/bin/head -10)",
+      "Bash(/usr/bin/lsof -ti:3000)",
+      "Bash(/usr/bin/head -5)",
+      "Bash(/usr/bin/ps aux *)",
+      "Bash(/usr/bin/grep -E \"vinxi|vite dev|vite-node\")",
+      "Bash(/usr/bin/grep -v grep)",
+      "Bash(bash -c 'lsof -ti:3000 2>&1 | head -3')",
+      "Bash(bash *)",
+      "Bash(kill 48650)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -nP)",
+      "Bash(pnpm install *)",
+      "Bash(xargs ls *)"
     ]
   }
 }

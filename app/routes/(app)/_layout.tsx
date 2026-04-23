@@ -1,11 +1,11 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { createServerFn } from '@tanstack/start-client-core'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { auth } from '~/auth/server'
-import { getWebRequest } from 'vinxi/http'
 import { TopBar } from '~/components/shell/TopBar'
 
 const getCurrentUser = createServerFn({ method: 'GET' }).handler(async () => {
-  const request = getWebRequest()
+  const request = getRequest()
   const session = await auth.api.getSession({ headers: request.headers })
   return session?.user ?? null
 })
@@ -22,11 +22,9 @@ export const Route = createFileRoute('/(app)/_layout')({
 function AppLayout() {
   const { user } = Route.useRouteContext()
   return (
-    <div className="min-h-screen">
+    <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
       <TopBar userEmail={user.email} />
-      <main className="mx-auto max-w-[1280px] px-6 py-6">
-        <Outlet />
-      </main>
+      <Outlet />
     </div>
   )
 }
