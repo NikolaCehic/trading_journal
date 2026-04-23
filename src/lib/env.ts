@@ -47,3 +47,17 @@ export const env = createEnv({
   },
   emptyStringAsUndefined: true,
 })
+
+export const cliEnv = createEnv({
+  server: {
+    DATABASE_URL: z.string().url(),
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  },
+  runtimeEnv: {
+    DATABASE_URL: process.env['DATABASE_URL'],
+    ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'],
+    NODE_ENV: process.env['NODE_ENV'],
+  },
+  emptyStringAsUndefined: true,
+})

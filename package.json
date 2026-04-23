@@ -16,8 +16,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "inngest:dev": "inngest-cli dev",
-    "rederive": "GOOGLE_CLIENT_ID=cli GOOGLE_CLIENT_SECRET=cli tsx --env-file=.env.local scripts/rederive.ts",
-    "seed:demo": "GOOGLE_CLIENT_ID=cli GOOGLE_CLIENT_SECRET=cli ANTHROPIC_API_KEY=cli tsx --env-file=.env.local scripts/seedDemo.ts",
+    "rederive": "tsx --env-file=.env.local scripts/rederive.ts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seedDemo.ts",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "e2e:ui": "playwright test --ui"
