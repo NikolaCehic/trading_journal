@@ -1025,6 +1025,14 @@ function CandlesAndFills({
   const innerW = w - pad.l - pad.r
   const innerH = h - pad.t - pad.b
 
+  const GAP = 6
+  const priceHeight = innerH * 0.72
+  const volumeHeight = innerH * 0.22
+  const priceTop = pad.t
+  const priceBottom = priceTop + priceHeight
+  const volumeTop = priceBottom + GAP
+  const volumeBottom = volumeTop + volumeHeight
+
   const tStart = candles[0]!.openTime.getTime()
   const tEnd = candles[candles.length - 1]!.closeTime.getTime()
   const tRange = tEnd - tStart || 1
@@ -1041,14 +1049,14 @@ function CandlesAndFills({
   const pPad = pRange * 0.05
 
   const sx = (ms: number) => pad.l + ((ms - tStart) / tRange) * innerW
-  const sy = (p: number) => pad.t + (1 - (p - (pMin - pPad)) / (pRange + 2 * pPad)) * innerH
+  const sy = (p: number) => priceTop + (1 - (p - (pMin - pPad)) / (pRange + 2 * pPad)) * priceHeight
 
   const intervalDurMs = INTERVAL_MS[interval]
   const bodyWidth = Math.max(2, (intervalDurMs / tRange) * innerW * 0.7)
 
   const gridY = [0.25, 0.5, 0.75].map(f => {
     const price = pMin + (pMax - pMin) * (1 - f)
-    return { y: pad.t + f * innerH, price }
+    return { y: priceTop + f * priceHeight, price }
   })
 
   const [hover, setHover] = useState<Candle | null>(null)
@@ -1119,12 +1127,38 @@ function CandlesAndFills({
           const y = sy(Number(f.price))
           return (
             <g key={f.id ?? i}>
-              <line x1={x} x2={x} y1={pad.t} y2={h - pad.b} stroke={fillColor} strokeOpacity="0.25" strokeDasharray="2 3" />
+              <line x1={x} x2={x} y1={priceTop} y2={priceBottom} stroke={fillColor} strokeOpacity="0.25" strokeDasharray="2 3" />
               <circle cx={x} cy={y} r="6" fill="var(--bg-base)" stroke={fillColor} strokeWidth="2" />
               <circle cx={x} cy={y} r="2.5" fill={fillColor} />
             </g>
           )
         })}
+
+        {/* Volume pane separator */}
+        <line x1={pad.l} x2={w - pad.r} y1={priceBottom + GAP / 2} y2={priceBottom + GAP / 2}
+          stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+
+        {/* Volume bars */}
+        {(() => {
+          const maxVol = Math.max(...candles.map(c => c.volume), 1)
+          return candles.map((c, i) => {
+            const x = sx(c.openTime.getTime() + intervalDurMs / 2)
+            const up = c.close >= c.open
+            const color = up ? 'var(--pnl-up)' : 'var(--pnl-down)'
+            const barH = (c.volume / maxVol) * volumeHeight
+            return (
+              <rect
+                key={`v-${i}`}
+                x={x - bodyWidth / 2}
+                y={volumeBottom - barH}
+                width={bodyWidth}
+                height={Math.max(1, barH)}
+                fill={color}
+                opacity="0.55"
+              />
+            )
+          })
+        })()}
 
         {/* X axis labels — 4 evenly spaced */}
         {[0, 1, 2, 3, 4].map(i => {
@@ -1141,7 +1175,7 @@ function CandlesAndFills({
         {/* Hover cross-hair */}
         {hover && (
           <line x1={sx(hover.openTime.getTime() + intervalDurMs / 2)} x2={sx(hover.openTime.getTime() + intervalDurMs / 2)}
-            y1={pad.t} y2={h - pad.b} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+            y1={priceTop} y2={priceBottom} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
         )}
       </svg>
 
