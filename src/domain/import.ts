@@ -13,6 +13,7 @@ export type ImportSource =
   | 'hyperliquid-csv'
   | 'hyperliquid-wallet'
   | 'bybit-csv'
+  | 'okx-csv'
 
 export type ValidationReport = {
   valid: boolean

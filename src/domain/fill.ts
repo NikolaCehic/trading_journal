@@ -1,4 +1,4 @@
-export type Exchange = 'binance' | 'hyperliquid' | 'bybit'
+export type Exchange = 'binance' | 'hyperliquid' | 'bybit' | 'okx'
 export type InstrumentType = 'spot' | 'perp'
 export type Side = 'buy' | 'sell'
 
