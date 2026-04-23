@@ -11,12 +11,15 @@ export type SendResult =
   | { sent: false; reason: 'no_api_key' | 'no_from_email'; logged: true }
   | { sent: false; reason: 'send_failed'; error: string; logged: true }
 
+/** Minimal shape accepted by sendDigestEmail — superset of RenderedEmail. */
+export type SendableEmail = Pick<RenderedEmail, 'subject' | 'html' | 'text'>
+
 // ---------------------------------------------------------------------------
 // sendDigestEmail
 // ---------------------------------------------------------------------------
 
 /**
- * Send a rendered digest email via Resend.
+ * Send a rendered email (digest or plan reminder) via Resend.
  *
  * Never throws — callers rely on the return value for state transitions.
  * If RESEND_API_KEY or DIGEST_FROM_EMAIL are not configured the function
@@ -24,7 +27,7 @@ export type SendResult =
  */
 export async function sendDigestEmail(
   to: string,
-  email: RenderedEmail,
+  email: SendableEmail,
 ): Promise<SendResult> {
   if (!env.RESEND_API_KEY) {
     console.warn('[narrator:email] RESEND_API_KEY missing, logging only')

@@ -28,6 +28,7 @@ function plan(
     rationale: null,
     createdAt: new Date('2024-01-01T00:00Z'),
     archivedAt: null,
+    reminderSentAt: null,
   }
 }
 

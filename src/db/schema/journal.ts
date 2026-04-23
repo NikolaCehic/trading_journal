@@ -84,6 +84,7 @@ export const tradePlan = pgTable('trade_plan', {
   rationale: text('rationale'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
+  reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
 }, (t) => [
   index('trade_plan_user_symbol_idx').on(t.userId, t.symbol),
 ])
