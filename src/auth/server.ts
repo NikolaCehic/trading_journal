@@ -33,6 +33,12 @@ export const auth = betterAuth({
         defaultValue: 'UTC',
         input: false,
       },
+      digestEnabled: {
+        type: 'boolean',
+        required: true,
+        defaultValue: true,
+        input: false,
+      },
     },
   },
   databaseHooks: {

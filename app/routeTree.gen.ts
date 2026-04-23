@@ -19,6 +19,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as appLayoutImportRouteImport } from './routes/(app)/_layout/import'
 import { Route as appLayoutDashboardRouteImport } from './routes/(app)/_layout/dashboard'
 import { Route as appLayoutTradesIndexRouteImport } from './routes/(app)/_layout/trades/index'
+import { Route as appLayoutSettingsIndexRouteImport } from './routes/(app)/_layout/settings/index'
 import { Route as appLayoutDigestIndexRouteImport } from './routes/(app)/_layout/digest/index'
 import { Route as appLayoutTradesPositionIdRouteImport } from './routes/(app)/_layout/trades/$positionId'
 
@@ -71,6 +72,11 @@ const appLayoutTradesIndexRoute = appLayoutTradesIndexRouteImport.update({
   path: '/trades/',
   getParentRoute: () => appLayoutRoute,
 } as any)
+const appLayoutSettingsIndexRoute = appLayoutSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => appLayoutRoute,
+} as any)
 const appLayoutDigestIndexRoute = appLayoutDigestIndexRouteImport.update({
   id: '/digest/',
   path: '/digest/',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/digest/': typeof appLayoutDigestIndexRoute
+  '/settings/': typeof appLayoutSettingsIndexRoute
   '/trades/': typeof appLayoutTradesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/digest': typeof appLayoutDigestIndexRoute
+  '/settings': typeof appLayoutSettingsIndexRoute
   '/trades': typeof appLayoutTradesIndexRoute
 }
 export interface FileRoutesById {
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/(app)/_layout/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/(app)/_layout/digest/': typeof appLayoutDigestIndexRoute
+  '/(app)/_layout/settings/': typeof appLayoutSettingsIndexRoute
   '/(app)/_layout/trades/': typeof appLayoutTradesIndexRoute
 }
 export interface FileRouteTypes {
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/trades/$positionId'
     | '/digest/'
+    | '/settings/'
     | '/trades/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/trades/$positionId'
     | '/digest'
+    | '/settings'
     | '/trades'
   id:
     | '__root__'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/(app)/_layout/trades/$positionId'
     | '/(app)/_layout/digest/'
+    | '/(app)/_layout/settings/'
     | '/(app)/_layout/trades/'
   fileRoutesById: FileRoutesById
 }
@@ -249,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutTradesIndexRouteImport
       parentRoute: typeof appLayoutRoute
     }
+    '/(app)/_layout/settings/': {
+      id: '/(app)/_layout/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof appLayoutSettingsIndexRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
     '/(app)/_layout/digest/': {
       id: '/(app)/_layout/digest/'
       path: '/digest'
@@ -271,6 +290,7 @@ interface appLayoutRouteChildren {
   appLayoutImportRoute: typeof appLayoutImportRoute
   appLayoutTradesPositionIdRoute: typeof appLayoutTradesPositionIdRoute
   appLayoutDigestIndexRoute: typeof appLayoutDigestIndexRoute
+  appLayoutSettingsIndexRoute: typeof appLayoutSettingsIndexRoute
   appLayoutTradesIndexRoute: typeof appLayoutTradesIndexRoute
 }
 
@@ -279,6 +299,7 @@ const appLayoutRouteChildren: appLayoutRouteChildren = {
   appLayoutImportRoute: appLayoutImportRoute,
   appLayoutTradesPositionIdRoute: appLayoutTradesPositionIdRoute,
   appLayoutDigestIndexRoute: appLayoutDigestIndexRoute,
+  appLayoutSettingsIndexRoute: appLayoutSettingsIndexRoute,
   appLayoutTradesIndexRoute: appLayoutTradesIndexRoute,
 }
 

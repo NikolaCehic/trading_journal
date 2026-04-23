@@ -3,6 +3,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
+import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import { user } from '~/db/schema/auth'
 
@@ -23,4 +24,14 @@ export const setTimezone = createServerFn({ method: 'POST' })
     }
     await db.update(user).set({ timezone: data.timezone }).where(eq(user.id, session.user.id))
     return { ok: true, timezone: data.timezone }
+  })
+
+export const setDigestEnabled = createServerFn({ method: 'POST' })
+  .inputValidator((d: unknown) => z.object({ enabled: z.boolean() }).parse(d))
+  .handler(async ({ data }) => {
+    const session = await auth.api.getSession({ headers: getRequest().headers })
+    if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
+    await db.update(user).set({ digestEnabled: data.enabled }).where(eq(user.id, session.user.id))
+    return { ok: true, enabled: data.enabled }
   })

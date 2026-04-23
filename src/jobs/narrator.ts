@@ -125,7 +125,7 @@ export const digestWeeklyScheduler = inngest.createFunction(
       const rows = await db
         .select({ id: user.id, timezone: user.timezone })
         .from(user)
-        .where(eq(user.isDemo, false))
+        .where(and(eq(user.isDemo, false), eq(user.digestEnabled, true)))
       log.info('digest-scheduler: fetched users', { userCount: rows.length, isoWeek })
       return rows
     })

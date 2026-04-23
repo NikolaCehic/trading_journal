@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "digest_enabled" boolean DEFAULT true NOT NULL;

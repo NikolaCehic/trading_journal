@@ -1,4 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
+import { Icon } from '~/components/tj/Icon'
 
 type NavItem = { label: string; to: string }
 
@@ -46,6 +47,14 @@ export function TopBar({ userEmail }: { userEmail: string }) {
           )
         })}
       </nav>
+      <Link
+        to="/settings"
+        className="tj-avatar-menu"
+        style={{ textDecoration: 'none', padding: 4, width: 32, justifyContent: 'center' }}
+        title="Settings"
+      >
+        <Icon name="gear" size={14} />
+      </Link>
       <a href="/api/auth/sign-out" className="tj-avatar-menu" style={{ textDecoration: 'none' }}>
         <span style={{ color: 'var(--fg-muted)' }}>{userEmail}</span>
         <div className="tj-avatar">{initials}</div>
