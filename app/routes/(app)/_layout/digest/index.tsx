@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { previewDigest, type DigestPreview } from '~/server/digestPreview'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { previewDigest, sendDigestNow, type DigestPreview } from '~/server/digestPreview'
+import { Icon } from '~/components/tj/Icon'
 
 export const Route = createFileRoute('/(app)/_layout/digest/')({
   component: DigestPage,
@@ -105,6 +107,12 @@ function PreviewNoData() {
 
 function PreviewBody({ data }: { data: DigestPreview }) {
   const { narrative, subject, isoWeek, failed, retried, tokensIn, tokensOut, html } = data
+
+  const send = useMutation({
+    mutationFn: () => sendDigestNow(),
+    onSuccess: () => toast.success('Digest email queued. Check your inbox in a minute.'),
+    onError: (err) => toast.error('Could not send: ' + String(err)),
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -292,6 +300,24 @@ function PreviewBody({ data }: { data: DigestPreview }) {
           }}
           title="Email HTML preview"
         />
+      </div>
+
+      {/* Send now button */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 16 }}>
+        <button
+          type="button"
+          className="tj-btn tj-btn-primary"
+          onClick={() => send.mutate()}
+          disabled={send.isPending || data.failed}
+          title={data.failed ? 'This digest is using the fallback template — enable AI_ENABLED=on with a real ANTHROPIC_API_KEY first' : undefined}
+        >
+          <Icon name="mail" size={12} /> {send.isPending ? 'Queuing…' : 'Send this to me now'}
+        </button>
+        {data.failed && (
+          <span style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>
+            Disabled while the narrator is running in fallback mode.
+          </span>
+        )}
       </div>
 
       {/* Meta row */}
