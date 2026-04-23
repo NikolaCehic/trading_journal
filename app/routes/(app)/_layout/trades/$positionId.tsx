@@ -13,6 +13,8 @@ import { upsertTradeNote, applyPositionTag, removePositionTag, createTag } from 
 import { linkPositionToPlan, unlinkPositionFromPlan } from '~/server/plans'
 import { getTradeCoach } from '~/server/coach'
 import { CoachNarrative } from '~/components/trades/CoachNarrative'
+import { getCandlesForPosition } from '~/server/market'
+import { INTERVAL_MS, type Candle, type CandleInterval } from '~/domain/candle'
 
 export const Route = createFileRoute('/(app)/_layout/trades/$positionId')({
   component: TradeDetailPage,
@@ -920,8 +922,12 @@ function CoachTab({ positionId, enabled }: { positionId: string; enabled: boolea
 
 // ── Fills Timeline ───────────────────────────────────────────
 
-function FillsSvg({ fills, bundle, height }: { fills: TradeDetailBundle['fills']; bundle: TradeDetailBundle; height: number }) {
-  const p = bundle.position
+function FillsSvgOnly({ fills, entryAvgPrice, exitAvgPrice, side }: {
+  fills: TradeDetailBundle['fills']
+  entryAvgPrice: number
+  exitAvgPrice: number | null
+  side: 'long' | 'short'
+}) {
   const times = fills.map(f => new Date(f.executedAt).getTime())
   const prices = fills.map(f => f.price)
   const tMin = Math.min(...times)
@@ -930,7 +936,7 @@ function FillsSvg({ fills, bundle, height }: { fills: TradeDetailBundle['fills']
   const pMax = Math.max(...prices)
   const pad = { l: 52, r: 20, t: 14, b: 28 }
   const w = 1000
-  const h = height
+  const h = 260
   const innerW = w - pad.l - pad.r
   const innerH = h - pad.t - pad.b
 
@@ -939,9 +945,6 @@ function FillsSvg({ fills, bundle, height }: { fills: TradeDetailBundle['fills']
 
   const sx = (t: number) => pad.l + ((t - tMin) / tRange) * innerW
   const sy = (price: number) => pad.t + (1 - (price - pMin) / pRange) * innerH
-
-  const avgEntry = p.entryAvgPrice
-  const avgExit = p.exitAvgPrice
 
   const leftTime = new Date(tMin).toISOString().slice(11, 16)
   const rightTime = new Date(tMax).toISOString().slice(11, 16)
@@ -962,17 +965,17 @@ function FillsSvg({ fills, bundle, height }: { fills: TradeDetailBundle['fills']
         )
       })}
       {/* Avg entry line */}
-      {avgEntry >= pMin && avgEntry <= pMax && (
-        <line x1={pad.l} x2={w - pad.r} y1={sy(avgEntry)} y2={sy(avgEntry)} stroke="rgba(255,255,255,0.18)" strokeDasharray="4 3" strokeWidth="1" />
+      {entryAvgPrice >= pMin && entryAvgPrice <= pMax && (
+        <line x1={pad.l} x2={w - pad.r} y1={sy(entryAvgPrice)} y2={sy(entryAvgPrice)} stroke="rgba(255,255,255,0.18)" strokeDasharray="4 3" strokeWidth="1" />
       )}
       {/* Avg exit line */}
-      {avgExit != null && avgExit >= pMin && avgExit <= pMax && (
-        <line x1={pad.l} x2={w - pad.r} y1={sy(avgExit)} y2={sy(avgExit)} stroke="rgba(255,255,255,0.10)" strokeDasharray="4 3" strokeWidth="1" />
+      {exitAvgPrice != null && exitAvgPrice >= pMin && exitAvgPrice <= pMax && (
+        <line x1={pad.l} x2={w - pad.r} y1={sy(exitAvgPrice)} y2={sy(exitAvgPrice)} stroke="rgba(255,255,255,0.10)" strokeDasharray="4 3" strokeWidth="1" />
       )}
       {/* Fill dots */}
       {fills.map((f) => {
-        const side = fillRoleToBuy(f.role, p.side)
-        const color = side === 'buy' ? 'var(--pnl-up)' : 'var(--pnl-down)'
+        const bs = fillRoleToBuy(f.role, side)
+        const color = bs === 'buy' ? 'var(--pnl-up)' : 'var(--pnl-down)'
         const cx = sx(new Date(f.executedAt).getTime())
         const cy = sy(f.price)
         return (
@@ -988,6 +991,222 @@ function FillsSvg({ fills, bundle, height }: { fills: TradeDetailBundle['fills']
         <text x={w - pad.r} y={h - 6} fill="var(--fg-faint)" fontSize="10" fontFamily="var(--font-mono)" textAnchor="end">{rightTime}</text>
       )}
     </svg>
+  )
+}
+
+function formatTimeLabel(d: Date, interval: CandleInterval): string {
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const min = String(d.getUTCMinutes()).padStart(2, '0')
+  if (interval === '5m' || interval === '15m') return `${hh}:${min}`
+  if (interval === '1h') return `${mm}/${dd} ${hh}:${min}`
+  return `${mm}/${dd}`
+}
+
+function formatPrice(p: number): string {
+  if (p < 1) return p.toExponential(2)
+  return p.toFixed(p < 100 ? 2 : 0)
+}
+
+function CandlesAndFills({
+  candles, fills, interval, entryAvgPrice, exitAvgPrice, side,
+}: {
+  candles: Candle[]
+  fills: TradeDetailBundle['fills']
+  interval: CandleInterval
+  entryAvgPrice: number
+  exitAvgPrice: number | null
+  side: 'long' | 'short'
+}) {
+  const pad = { l: 60, r: 12, t: 12, b: 28 }
+  const w = 1200
+  const h = 280
+  const innerW = w - pad.l - pad.r
+  const innerH = h - pad.t - pad.b
+
+  const tStart = candles[0]!.openTime.getTime()
+  const tEnd = candles[candles.length - 1]!.closeTime.getTime()
+  const tRange = tEnd - tStart || 1
+
+  const allPrices = [
+    ...candles.flatMap(c => [c.low, c.high]),
+    ...fills.map(f => Number(f.price)),
+    entryAvgPrice,
+    ...(exitAvgPrice != null ? [exitAvgPrice] : []),
+  ].filter(n => Number.isFinite(n) && n > 0)
+  const pMin = Math.min(...allPrices)
+  const pMax = Math.max(...allPrices)
+  const pRange = pMax - pMin || 1
+  const pPad = pRange * 0.05
+
+  const sx = (ms: number) => pad.l + ((ms - tStart) / tRange) * innerW
+  const sy = (p: number) => pad.t + (1 - (p - (pMin - pPad)) / (pRange + 2 * pPad)) * innerH
+
+  const intervalDurMs = INTERVAL_MS[interval]
+  const bodyWidth = Math.max(2, (intervalDurMs / tRange) * innerW * 0.7)
+
+  const gridY = [0.25, 0.5, 0.75].map(f => {
+    const price = pMin + (pMax - pMin) * (1 - f)
+    return { y: pad.t + f * innerH, price }
+  })
+
+  const [hover, setHover] = useState<Candle | null>(null)
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none"
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect()
+          const x = e.clientX - r.left
+          const ratio = w / r.width
+          const ms = tStart + ((x * ratio - pad.l) / innerW) * tRange
+          let best: Candle | null = null
+          let bestDelta = Infinity
+          for (const c of candles) {
+            const delta = Math.abs(c.openTime.getTime() + intervalDurMs / 2 - ms)
+            if (delta < bestDelta) { bestDelta = delta; best = c }
+          }
+          setHover(best)
+        }}
+        onMouseLeave={() => setHover(null)}
+      >
+        {/* Grid */}
+        {gridY.map((g, i) => (
+          <Fragment key={i}>
+            <line x1={pad.l} x2={w - pad.r} y1={g.y} y2={g.y} stroke="rgba(255,255,255,0.04)" strokeDasharray="2 4" />
+            <text x={pad.l - 8} y={g.y + 3} fill="var(--fg-faint)" fontSize="10" fontFamily="var(--font-mono)" textAnchor="end">
+              {g.price < 1 ? g.price.toExponential(2) : g.price.toFixed(g.price < 100 ? 2 : 0)}
+            </text>
+          </Fragment>
+        ))}
+
+        {/* Entry / exit guides */}
+        <line x1={pad.l} x2={w - pad.r} y1={sy(entryAvgPrice)} y2={sy(entryAvgPrice)}
+          stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
+        <text x={w - pad.r - 4} y={sy(entryAvgPrice) - 4} fill="var(--fg-subtle)" fontSize="10"
+          fontFamily="var(--font-mono)" textAnchor="end">entry</text>
+        {exitAvgPrice != null && (
+          <>
+            <line x1={pad.l} x2={w - pad.r} y1={sy(exitAvgPrice)} y2={sy(exitAvgPrice)}
+              stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
+            <text x={w - pad.r - 4} y={sy(exitAvgPrice) - 4} fill="var(--fg-subtle)" fontSize="10"
+              fontFamily="var(--font-mono)" textAnchor="end">exit</text>
+          </>
+        )}
+
+        {/* Candles */}
+        {candles.map((c, i) => {
+          const x = sx(c.openTime.getTime() + intervalDurMs / 2)
+          const up = c.close >= c.open
+          const color = up ? 'var(--pnl-up)' : 'var(--pnl-down)'
+          const bodyTop = sy(Math.max(c.open, c.close))
+          const bodyBot = sy(Math.min(c.open, c.close))
+          return (
+            <g key={i}>
+              <line x1={x} x2={x} y1={sy(c.high)} y2={sy(c.low)} stroke={color} strokeWidth="1" />
+              <rect x={x - bodyWidth / 2} y={bodyTop} width={bodyWidth} height={Math.max(1, bodyBot - bodyTop)} fill={color} />
+            </g>
+          )
+        })}
+
+        {/* Fills */}
+        {fills.map((f, i) => {
+          const effBuy = (side === 'long' && (f.role === 'open' || f.role === 'add'))
+            || (side === 'short' && (f.role === 'reduce' || f.role === 'close'))
+          const fillColor = effBuy ? 'var(--pnl-up)' : 'var(--pnl-down)'
+          const x = sx(new Date(f.executedAt).getTime())
+          const y = sy(Number(f.price))
+          return (
+            <g key={f.id ?? i}>
+              <line x1={x} x2={x} y1={pad.t} y2={h - pad.b} stroke={fillColor} strokeOpacity="0.25" strokeDasharray="2 3" />
+              <circle cx={x} cy={y} r="6" fill="var(--bg-base)" stroke={fillColor} strokeWidth="2" />
+              <circle cx={x} cy={y} r="2.5" fill={fillColor} />
+            </g>
+          )
+        })}
+
+        {/* X axis labels — 4 evenly spaced */}
+        {[0, 1, 2, 3, 4].map(i => {
+          const ms = tStart + (i / 4) * tRange
+          const label = formatTimeLabel(new Date(ms), interval)
+          return (
+            <text key={i} x={pad.l + (i / 4) * innerW} y={h - 10}
+              fill="var(--fg-faint)" fontSize="10" fontFamily="var(--font-mono)" textAnchor="middle">
+              {label}
+            </text>
+          )
+        })}
+
+        {/* Hover cross-hair */}
+        {hover && (
+          <line x1={sx(hover.openTime.getTime() + intervalDurMs / 2)} x2={sx(hover.openTime.getTime() + intervalDurMs / 2)}
+            y1={pad.t} y2={h - pad.b} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+        )}
+      </svg>
+
+      {hover && (
+        <div style={{
+          position: 'absolute', top: 12, right: 16,
+          display: 'flex', gap: 14, fontFamily: 'var(--font-mono)', fontSize: 11,
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-hover)', borderRadius: 6, padding: '6px 10px',
+          color: 'var(--fg)',
+        }}>
+          <span><span style={{ color: 'var(--fg-subtle)' }}>O </span>{formatPrice(hover.open)}</span>
+          <span><span style={{ color: 'var(--fg-subtle)' }}>H </span>{formatPrice(hover.high)}</span>
+          <span><span style={{ color: 'var(--fg-subtle)' }}>L </span>{formatPrice(hover.low)}</span>
+          <span><span style={{ color: 'var(--fg-subtle)' }}>C </span>{formatPrice(hover.close)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FillsChart({ fills, positionId, side, entryAvgPrice, exitAvgPrice, onSubtitle }: {
+  fills: TradeDetailBundle['fills']
+  positionId: string
+  side: 'long' | 'short'
+  entryAvgPrice: number
+  exitAvgPrice: number | null
+  onSubtitle: (text: string) => void
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['position-candles', positionId],
+    queryFn: () => getCandlesForPosition({ data: { positionId } }),
+    staleTime: 5 * 60_000,
+  })
+
+  useEffect(() => {
+    if (isLoading) {
+      onSubtitle('Loading candles…')
+    } else if (!data || !data.supported || data.candles.length === 0) {
+      onSubtitle('Price candles unavailable — fills-only view')
+    } else {
+      onSubtitle(`${data.candles.length} candles (${data.interval}) · ${fills.length} fills`)
+    }
+  }, [isLoading, data, fills.length, onSubtitle])
+
+  if (isLoading) {
+    return (
+      <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-subtle)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+        Loading candles…
+      </div>
+    )
+  }
+
+  if (!data || !data.supported || data.candles.length === 0) {
+    return <FillsSvgOnly fills={fills} entryAvgPrice={entryAvgPrice} exitAvgPrice={exitAvgPrice} side={side} />
+  }
+
+  return (
+    <CandlesAndFills
+      candles={data.candles}
+      fills={fills}
+      interval={data.interval}
+      entryAvgPrice={entryAvgPrice}
+      exitAvgPrice={exitAvgPrice}
+      side={side}
+    />
   )
 }
 
@@ -1026,6 +1245,9 @@ function FillsList({ fills, side }: { fills: TradeDetailBundle['fills']; side: '
 
 function FillsTimeline({ bundle }: { bundle: TradeDetailBundle }) {
   const fills = bundle.fills
+  const p = bundle.position
+  const [subtitle, setSubtitle] = useState('Loading candles…')
+
   if (fills.length === 0) {
     return (
       <div className="tj-card">
@@ -1040,12 +1262,19 @@ function FillsTimeline({ bundle }: { bundle: TradeDetailBundle }) {
     <div className="tj-card">
       <div className="tj-card-head">
         <div className="tj-card-title">Fills timeline</div>
-        <div className="tj-card-sub">{fills.length} fills · price axis only</div>
+        <div className="tj-card-sub">{subtitle}</div>
       </div>
       <div style={{ padding: '8px 20px 0' }}>
-        <FillsSvg fills={fills} bundle={bundle} height={260} />
+        <FillsChart
+          fills={fills}
+          positionId={p.id}
+          side={p.side}
+          entryAvgPrice={p.entryAvgPrice}
+          exitAvgPrice={p.exitAvgPrice}
+          onSubtitle={setSubtitle}
+        />
       </div>
-      <FillsList fills={fills} side={bundle.position.side} />
+      <FillsList fills={fills} side={p.side} />
     </div>
   )
 }
