@@ -72,23 +72,48 @@ function currentIsoWeek(): string {
 }
 
 // ---------------------------------------------------------------------------
-// A) digestWeeklyScheduler — daily cron, fans out on Sundays
+// Timezone helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if `now` falls within the 22:00 hour on a Sunday in the given
+ * IANA timezone. The cron fires every hour (`0 * * * *`), so this function
+ * acts as the real "is it time?" gate per user.
+ */
+export function isSunday22InTz(now: Date, tz: string): boolean {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      weekday: 'short',
+      hour: 'numeric',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(now)
+    const weekday = parts.find(p => p.type === 'weekday')?.value // 'Sun', 'Mon', ...
+    const hour = parts.find(p => p.type === 'hour')?.value       // '22' (or '00' at rollover)
+    return weekday === 'Sun' && hour === '22'
+  } catch {
+    return false // invalid tz → skip this user
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A) digestWeeklyScheduler — hourly cron, fans out to users at local 22:00 Sunday
+//
+// Fires every hour (`0 * * * *`) so that each user receives their digest at
+// 22:00 in their own timezone rather than a fixed UTC time.
 // ---------------------------------------------------------------------------
 
 export const digestWeeklyScheduler = inngest.createFunction(
   {
     id: 'digest-weekly-scheduler',
     name: 'Digest Weekly Scheduler',
-    triggers: [cron('0 22 * * *')],
+    triggers: [cron('0 * * * *')],
     concurrency: { limit: 1 },
     retries: 2,
   },
   async ({ step }) => {
-    // Guard: only proceed on Sundays (UTC)
-    if (new Date().getUTCDay() !== 0) {
-      log.info('digest-scheduler: skipping — not Sunday')
-      return { skipped: true, reason: 'not_sunday' }
-    }
+    const now = new Date()
 
     const isoWeek = await step.run('compute-iso-week', () => {
       const week = currentIsoWeek()
@@ -97,19 +122,27 @@ export const digestWeeklyScheduler = inngest.createFunction(
     })
 
     const users = await step.run('select-users', async () => {
-      const rows = await db.select({ id: user.id }).from(user)
+      const rows = await db
+        .select({ id: user.id, timezone: user.timezone })
+        .from(user)
+        .where(eq(user.isDemo, false))
       log.info('digest-scheduler: fetched users', { userCount: rows.length, isoWeek })
       return rows
     })
 
-    await step.run('fan-out', async () => {
-      for (const u of users) {
-        await sendDigestCompose({ userId: u.id, isoWeek })
-      }
-      log.info('digest-scheduler: fanned out compose events', { userCount: users.length, isoWeek })
-    })
+    const dueUsers = users.filter(u => isSunday22InTz(now, u.timezone))
 
-    return { userCount: users.length, isoWeek }
+    if (dueUsers.length === 0) {
+      log.info('digest-scheduler: skipping — no users at local 22:00 Sunday')
+      return { skipped: true, reason: 'no_users_at_local_22_sunday' }
+    }
+
+    for (const u of dueUsers) {
+      await step.run(`enqueue-${u.id}`, () => sendDigestCompose({ userId: u.id, isoWeek }))
+    }
+
+    log.info('digest-scheduler: fanned out compose events', { userCount: dueUsers.length, isoWeek })
+    return { enqueued: dueUsers.length, isoWeek }
   },
 )
 

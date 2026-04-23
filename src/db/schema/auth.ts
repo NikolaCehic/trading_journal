@@ -7,6 +7,7 @@ export const user = pgTable('user', {
   name: text('name'),
   image: text('image'),
   isDemo: boolean('is_demo').notNull().default(false),
+  timezone: text('timezone').notNull().default('UTC'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
