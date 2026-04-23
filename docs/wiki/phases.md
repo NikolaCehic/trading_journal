@@ -270,3 +270,53 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - Phase-0 smoke test + stale `KpiTile.test.tsx` — still not addressed
 
 ---
+
+## Phase 6 — Polish + Correctness · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-26-phase-6-polish.md`
+
+**Shipped** (11 task commits from `9a4d0d9` through `b829012`)
+
+- **Test hygiene** — `tests/unit/components/KpiTile.test.tsx` deleted (referenced a deleted module from Phase 3.5). `tests/smoke/phase-0.test.ts` gated behind `process.env.CI === 'true'` via a `describeInCI` wrapper — it still runs in CI but no longer fails locally on fresh checkouts. Suite is now 139 passing / 5 skipped / 0 failing files.
+- **Dashboard filters actually filter** — `getDashboardBundle` refactored around a `resolveFilteredPositionIds(db, userId, filters)` helper that honors `symbols[]`, `instrument`, and `setupTagIds[]` (AND semantics). All downstream aggregates (KPIs, equity curve, heatmap, asset breakdown, summary, top findings, session breakdown, meta counts) recompute from the filtered position set. Prior-period delta uses the same filters with a shifted window. 10 new unit tests. Dropped the rollup shortcut; keeps the read path uniform.
+- **Day-of-week heatmap** — new `day_of_week_metric` table with composite PK `(userId, dayOfWeekUtc, hourOfDayUtc, derivationVersion)`. Aggregator in `src/derivation/metrics/dayOfWeek.ts` uses ISO convention (Mon=0..Sun=6) via `((getUTCDay()+6)%7)`. Persisted by the runner. `DERIVATION_VERSION` bumped from 1 → 2. Server fn reads from the new table on the unfiltered path; filter-active path still computes on-the-fly. Migration `drizzle/0005_wandering_gargoyle.sql`. 5 new tests. **Users must run `pnpm rederive` once after deploy** to populate the new metric.
+- **Keyboard nav on trades list** — `/` focus search · `j`/`k` highlight move · `Enter` open · `x`/`Space` select · `Esc` clear. ArrowUp/ArrowDown also work. Highlight shown as a 3px accent-colored inset box-shadow on the left edge. `data-hl="true"` attribute on active row + `querySelector` scrollIntoView on index change. Shortcut hint rendered below the results count: `/ search · j/k navigate · Enter open · Space select · Esc clear`.
+- **R-multiple + max-drawdown** — two new numeric columns on `position` (`r_multiple`, `max_drawdown_pct`). R-multiple is `realizedPnl / (entryAvgPrice * 0.01 * size)` — v1 approximation where 1R = 1% of entry notional (documented in comment). Max-drawdown walks fills in time order tracking the adverse excursion from entry; null when no adverse tick was ever seen mid-trade. Both surfaced in the trade-detail metric chips with appropriate color coding. Migration `drizzle/0006_fuzzy_post.sql`. 4 new merger tests. **Users must `pnpm rederive` to populate for existing positions.**
+- **Notes editor toolbar** — above the `<textarea>`, 8 selection-wrapping buttons (**B** · **I** · **H1** · **H2** · **•** · **1.** · **`<>`** · **—** horizontal rule). Keyboard shortcuts: Cmd+B, Cmd+I, Cmd+K (link with prompt). Two helpers (`wrapSelection` + `prefixLines`) handle the textbox selection math. Preserves Phase-5 autosave behavior.
+- **CSV / JSON exports** — new `src/lib/csv.ts` with `toCsv<T>` + `downloadFile` helpers. Dashboard export: summary + asset breakdown as CSV with filter metadata at top. Trades list: current filtered rows as CSV via header button; bulk-select bar exports only selected rows. Trade detail: full `TradeDetailBundle` as JSON via an icon-button in the header card corner. All client-side — no new server fns.
+- **Typed Link sweep** — audit complete. The codebase was already clean: all internal route navigation uses `<Link>`; the remaining `<a>` tags are either intra-page hash anchors, API routes (`/api/auth/sign-out`), or placeholder nav items (wired in the next task). No-op commit.
+- **Landing polish + `/changelog` page** — nav items now functional: Product/Detectors/Pricing anchor-scroll to `#product`/`#detectors`/`#pricing` section IDs; Changelog is a typed `<Link to="/changelog">`. "View sample digest" button now links to `/digest`. Footer's Changelog entry also updated. New `app/routes/(public)/changelog.tsx` with a hand-curated 8-entry timeline (v0.0 → v0.6). Added `html { scroll-behavior: smooth }` to globals.
+- **Per-user timezone** — new `timezone text not null default 'UTC'` column on `user`; exposed via Better Auth `additionalFields`. `src/server/userPrefs.ts` exports `setTimezone` — validates IANA tz via `new Intl.DateTimeFormat({ timeZone })`. `_layout.tsx` fire-and-forget POSTs the browser's tz on session load if it differs from the stored value. Scheduler cron changed from `0 22 * * *` (daily UTC) to `0 * * * *` (hourly) — the handler filters users to those whose local time is `Sun 22:xx` via `Intl.DateTimeFormat('en-US', { timeZone, weekday, hour })` formatToParts. Demo users excluded. Migration `drizzle/0007_abnormal_toad_men.sql`. 5 new tests for `isSunday22InTz`.
+- **Coach references as typed Links** — new `getPositionsByIds` server fn (POST, auth + ownership, silently drops unknown IDs, max 10). New `referenced_position_ids text[] not null default '{}'` column on `trade_coach_note` — persisted on miss, read on hit. `CoachNarrative` component now renders a footer chip row: "Referenced [BTCUSDT long +$352]" with each chip a typed `<Link to="/trades/$positionId">`. Migration `drizzle/0008_add_coach_referenced_position_ids.sql`.
+
+**Test state after Phase 6:** 158 passing / 5 skipped / 0 failing. `pnpm typecheck` clean.
+
+**Key design decisions / gotchas**
+- Dashboard filters are strictly AND — an empty `symbols[]` means "all symbols", but adding any symbol filters down to that set. Same for `setupTagIds`. Combining with `instrument` narrows further.
+- The setup-tag filter uses a secondary query + in-memory intersection because `selectDistinctOn` isn't reliably supported on the neon-http driver. Cost is one extra roundtrip; acceptable for beta scale.
+- `DERIVATION_VERSION` bumped once in Task 3 (for the dayOfWeekMetric table) and the Task 5 position-column additions piggy-backed on the same version. Result: a single `pnpm rederive` covers both.
+- Max-drawdown approximation is per-fill, not per-tick. A position that ran deep-red between fills won't capture the minimum price — but since fills include both scale-ins and exits, the signal is reasonable for behavioral analysis.
+- R-multiple v1 defines "risk" as 1% of entry notional. The correct semantic is "risk = distance from entry to planned stop × size" — but we don't capture planned stops yet. Documented in code.
+- Keyboard `ArrowDown`/`ArrowUp` also work — not just `j`/`k`. Decided this is nicer for new users without breaking the Vim bindings.
+- Notes toolbar keeps plain-textarea ergonomics. TipTap was considered and dropped (100KB for a feature most users don't need in v1). Selection-wrap + `prefixLines` covers 80% of markdown-editing use.
+- CSV export of the trades list respects current client-side filters — the visible `data.rows` IS the filtered set. Same for bulk-select export. No new server-side query.
+- Typed Link sweep was a no-op — the codebase was already clean. Keeping the task in the wiki for completeness.
+- `/changelog` is public (no auth). Mirrors landing's aesthetic, reuses `.tj-*` classes + `Wordmark`.
+- Scheduler cron went hourly (instead of daily) because the Sunday 22:00 local check needs to fire every hour to catch every timezone. Cost: 24 no-op cron firings per non-Sunday day. Trivial.
+- `isSunday22InTz` uses `Intl.DateTimeFormat(...).formatToParts(now)` — more robust than manual offset math. Invalid IANA tz string → function returns false (skip user silently). Logged at INFO level.
+- `trade_coach_note.referenced_position_ids` is `text[] not null default '{}'` — existing cache rows (inserted before Phase 6) default to empty array; no crash on read.
+- `getPositionsByIds` silently filters out positions the user doesn't own (instead of throwing) — safer UX because the AI could theoretically reference an ID from another user, and we don't want that to break the Coach tab UI.
+
+**Deferred from Phase 6**
+- **Bybit / OKX ingestion** — Phase 7 (new adapters + test matrix).
+- **Custom user-defined detectors** — Phase 8 (detector DSL + admin UI).
+- **Email unsubscribe + preferences UI** — bundle with Phase 7 narrator polish.
+- **Playwright E2E smoke suite** — own setup phase.
+- **"Send me this now" button** on `/digest` — narrator polish, Phase 7.
+- **Real market-data candles** on fills timeline — needs a market-data provider, Phase 8+.
+- **CLI-friendly env schema** — still requires `GOOGLE_CLIENT_ID=cli` etc. inline. Low priority; follow-up.
+- **Stop-loss / planned-risk capture** — to make R-multiple exact. Separate UX surface for pre-trade planning.
+- **Day-of-week axis label orientation** when the heatmap sidebar gets more cramped — minor polish.
+- **Tooltip when Filter chips cross 3+ active** — visual busy-ness is noticeable. Nice-to-have.
+
+---
