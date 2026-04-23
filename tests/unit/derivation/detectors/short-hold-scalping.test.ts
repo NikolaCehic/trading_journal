@@ -10,6 +10,7 @@ function p(id: string, pnl: number, holdSec: number): Position {
     instrumentType: 'perp', side: 'long',
     entryAvgPrice: 40000, exitAvgPrice: 40000, size: 0.01, notionalUsd: 400, maxNotionalUsd: 400,
     realizedPnl: pnl, totalFees: 0.2, fundingPnl: 0, wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: open, closedAt: new Date(open.getTime() + holdSec * 1000), fills: [], derivationVersion: 1,
   }
 }

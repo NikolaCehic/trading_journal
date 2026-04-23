@@ -12,6 +12,7 @@ function p(id: string, notional: number, daysAgo: number, now: Date): Position {
     entryAvgPrice: 40000, exitAvgPrice: 40000, size: notional / 40000,
     notionalUsd: notional, maxNotionalUsd: notional,
     realizedPnl: 0, totalFees: 0.2, fundingPnl: 0, wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: new Date(t), closedAt: new Date(t + 3600000), fills: [], derivationVersion: 1,
   }
 }

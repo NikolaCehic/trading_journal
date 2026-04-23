@@ -13,6 +13,7 @@ function p(id: string, notional: number, openDaysAgo: number, now: Date): Positi
     notionalUsd: notional, maxNotionalUsd: notional,
     realizedPnl: 0, totalFees: 0.2, fundingPnl: 0,
     wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: new Date(t), closedAt: new Date(t + 3600000), fills: [], derivationVersion: 1,
   }
 }

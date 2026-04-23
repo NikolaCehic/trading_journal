@@ -26,6 +26,8 @@ export const position = pgTable('position', {
   fundingPnl: numeric('funding_pnl', { precision: 36, scale: 18 }).notNull().default('0'),
   wasLiquidated: boolean('was_liquidated').notNull().default(false),
   needsReview: boolean('needs_review').notNull().default(false),
+  rMultiple: numeric('r_multiple', { precision: 20, scale: 8 }),
+  maxDrawdownPct: numeric('max_drawdown_pct', { precision: 10, scale: 6 }),
   openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
   closedAt: timestamp('closed_at', { withTimezone: true }),
   derivationVersion: integer('derivation_version').notNull(),

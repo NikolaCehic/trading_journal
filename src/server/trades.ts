@@ -108,6 +108,8 @@ export type TradeDetailBundle = {
     size: number; notionalUsd: number; maxNotionalUsd: number
     realizedPnl: number; totalFees: number; fundingPnl: number
     wasLiquidated: boolean; needsReview: boolean
+    rMultiple: number | null
+    maxDrawdownPct: number | null
     openedAt: Date; closedAt: Date | null
     derivationVersion: number
   }
@@ -180,6 +182,8 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
         totalFees: Number(pos.totalFees),
         fundingPnl: Number(pos.fundingPnl),
         wasLiquidated: pos.wasLiquidated, needsReview: pos.needsReview,
+        rMultiple: pos.rMultiple != null ? Number(pos.rMultiple) : null,
+        maxDrawdownPct: pos.maxDrawdownPct != null ? Number(pos.maxDrawdownPct) : null,
         openedAt: pos.openedAt, closedAt: pos.closedAt,
         derivationVersion: pos.derivationVersion,
       },

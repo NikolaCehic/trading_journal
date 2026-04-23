@@ -15,6 +15,7 @@ function pos(id: string, side: 'long'|'short', fills: PositionFillRef[], pnl: nu
     instrumentType: 'perp', side, entryAvgPrice: entry, exitAvgPrice: entry,
     size: totalSize, notionalUsd: entry * totalSize, maxNotionalUsd: entry * totalSize,
     realizedPnl: pnl, totalFees: 1, fundingPnl: 0, wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: fills[0]!.executedAt, closedAt: fills[fills.length - 1]!.executedAt, fills,
     derivationVersion: 1,
   }

@@ -38,6 +38,8 @@ export async function persistDerivation(
       fundingPnl: String(p.fundingPnl),
       wasLiquidated: p.wasLiquidated,
       needsReview: p.needsReview,
+      rMultiple: p.rMultiple != null ? String(p.rMultiple) : null,
+      maxDrawdownPct: p.maxDrawdownPct != null ? String(p.maxDrawdownPct) : null,
       openedAt: p.openedAt, closedAt: p.closedAt,
       derivationVersion: version,
     })))

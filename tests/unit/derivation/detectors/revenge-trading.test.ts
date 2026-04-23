@@ -26,6 +26,7 @@ function pos(o: { id: string; pnl: number; notionalUsd: number; openedAt: Date; 
     notionalUsd: o.notionalUsd, maxNotionalUsd: o.notionalUsd,
     realizedPnl: o.pnl, totalFees: 0.4, fundingPnl: 0,
     wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: o.openedAt, closedAt: o.closedAt, fills: [], derivationVersion: 1,
   }
 }

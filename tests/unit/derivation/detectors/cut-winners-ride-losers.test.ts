@@ -11,6 +11,7 @@ function p(id: string, pnl: number, durationMin: number): Position {
     instrumentType: 'perp', side: 'long',
     entryAvgPrice: 40000, exitAvgPrice: 40000, size: 0.01, notionalUsd: 400, maxNotionalUsd: 400,
     realizedPnl: pnl, totalFees: 0.4, fundingPnl: 0, wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: open, closedAt: new Date(open.getTime() + durationMin * MIN), fills: [], derivationVersion: 1,
   }
 }

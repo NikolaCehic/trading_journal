@@ -153,6 +153,66 @@ describe('mergeFillsIntoPositions — spot FIFO', () => {
   })
 })
 
+describe('mergeFillsIntoPositions — rMultiple + maxDrawdownPct', () => {
+  it('rMultiple: winning trade — realizedPnl=100, entry notional 1000 → rMultiple=10', () => {
+    // entry price 1000, size 1, notional = 1000. 1R = 1000 * 0.01 * 1 = 10. rMultiple = 100 / 10 = 10
+    const fills: F[] = [
+      mkFill({ id: 'f1', tid: 1, side: 'buy', price: '1000', size: '1',
+               fee: '0', normalizerHint: { dir: 'Open Long' }, executedAt: new Date(0) }),
+      mkFill({ id: 'f2', tid: 2, side: 'sell', price: '1100', size: '1',
+               fee: '0', normalizerHint: { dir: 'Close Long' }, executedAt: new Date(60_000) }),
+    ]
+    const [p] = mergeFillsIntoPositions('u1', fills, 2)
+    // realizedPnl = (1100 - 1000) * 1 = 100
+    expect(p!.realizedPnl).toBeCloseTo(100, 6)
+    expect(p!.rMultiple).toBeCloseTo(10, 6)
+  })
+
+  it('rMultiple: losing trade → rMultiple < 0', () => {
+    // entry price 2000, size 0.5, notional = 1000. 1R = 2000 * 0.01 * 0.5 = 10. pnl = -20 → rMultiple = -2
+    const fills: F[] = [
+      mkFill({ id: 'f1', tid: 1, side: 'buy', price: '2000', size: '0.5',
+               fee: '0', normalizerHint: { dir: 'Open Long' }, executedAt: new Date(0) }),
+      mkFill({ id: 'f2', tid: 2, side: 'sell', price: '1960', size: '0.5',
+               fee: '0', normalizerHint: { dir: 'Close Long' }, executedAt: new Date(60_000) }),
+    ]
+    const [p] = mergeFillsIntoPositions('u1', fills, 2)
+    // realizedPnl = (1960 - 2000) * 0.5 = -20; 1R = 2000 * 0.01 * 0.5 = 10; rMultiple = -20/10 = -2
+    expect(p!.rMultiple).toBeCloseTo(-2, 6)
+    expect(p!.rMultiple).toBeLessThan(0)
+  })
+
+  it('maxDrawdownPct: long with mid-trade dip below entry → negative value', () => {
+    // entry 100, add at 90 (below entry) → dip = (90 - 100) / 100 = -0.1
+    const fills: F[] = [
+      mkFill({ id: 'f1', tid: 1, side: 'buy', price: '100', size: '1',
+               fee: '0', normalizerHint: { dir: 'Open Long' }, executedAt: new Date(0) }),
+      mkFill({ id: 'f2', tid: 2, side: 'buy', price: '90', size: '0.5',
+               fee: '0', normalizerHint: { dir: 'Add Long' }, executedAt: new Date(60_000) }),
+      mkFill({ id: 'f3', tid: 3, side: 'sell', price: '110', size: '1.5',
+               fee: '0', normalizerHint: { dir: 'Close Long' }, executedAt: new Date(120_000) }),
+    ]
+    const [p] = mergeFillsIntoPositions('u1', fills, 2)
+    expect(p!.maxDrawdownPct).not.toBeNull()
+    expect(p!.maxDrawdownPct).toBeLessThan(0)
+    // entry avg after add = (100*1 + 90*0.5) / 1.5 ≈ 96.6667; adverse fill price 90 is below entryAvgPrice
+    // dip = (90 - 96.6667) / 96.6667 ≈ -0.06897
+    expect(p!.maxDrawdownPct).toBeCloseTo((90 - (100 + 45) / 1.5) / ((100 + 45) / 1.5), 6)
+  })
+
+  it('maxDrawdownPct: trade profited without any adverse tick → null', () => {
+    // entry 100, close at 120 — no fill ever printed below 100 (long)
+    const fills: F[] = [
+      mkFill({ id: 'f1', tid: 1, side: 'buy', price: '100', size: '1',
+               fee: '0', normalizerHint: { dir: 'Open Long' }, executedAt: new Date(0) }),
+      mkFill({ id: 'f2', tid: 2, side: 'sell', price: '120', size: '1',
+               fee: '0', normalizerHint: { dir: 'Close Long' }, executedAt: new Date(60_000) }),
+    ]
+    const [p] = mergeFillsIntoPositions('u1', fills, 2)
+    expect(p!.maxDrawdownPct).toBeNull()
+  })
+})
+
 describe('mergeFillsIntoPositions — reduce/add interplay (bug-fix coverage)', () => {
   it('reduce-then-add computes correct weighted entry avg and PnL', () => {
     const fills: F[] = [

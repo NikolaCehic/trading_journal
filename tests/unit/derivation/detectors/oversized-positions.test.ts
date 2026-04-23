@@ -12,6 +12,7 @@ function pos(id: string, notional: number, pnl: number): Position {
     notionalUsd: notional, maxNotionalUsd: notional,
     realizedPnl: pnl, totalFees: 0.4, fundingPnl: 0,
     wasLiquidated: false, needsReview: false,
+    rMultiple: null, maxDrawdownPct: null,
     openedAt: new Date(0), closedAt: new Date(1), fills: [], derivationVersion: 1,
   }
 }

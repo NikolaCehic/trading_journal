@@ -47,6 +47,7 @@ const pos_btc_1 = {
   size: '0.1', notionalUsd: '4000', maxNotionalUsd: '4000',
   realizedPnl: '100', totalFees: '2', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-10T08:00:00Z'), closedAt: T('2026-01-10T10:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-10T08:00:00Z'),
 }
@@ -57,6 +58,7 @@ const pos_btc_2 = {
   size: '0.1', notionalUsd: '4100', maxNotionalUsd: '4100',
   realizedPnl: '200', totalFees: '2', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-11T09:00:00Z'), closedAt: T('2026-01-11T11:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-11T09:00:00Z'),
 }
@@ -67,6 +69,7 @@ const pos_btc_3 = {
   size: '0.1', notionalUsd: '4200', maxNotionalUsd: '4200',
   realizedPnl: '-100', totalFees: '2', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-12T08:00:00Z'), closedAt: T('2026-01-12T10:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-12T08:00:00Z'),
 }
@@ -79,6 +82,7 @@ const pos_eth_1 = {
   size: '1', notionalUsd: '2000', maxNotionalUsd: '2000',
   realizedPnl: '50', totalFees: '1', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-13T10:00:00Z'), closedAt: T('2026-01-13T12:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-13T10:00:00Z'),
 }
@@ -89,6 +93,7 @@ const pos_eth_2 = {
   size: '1', notionalUsd: '2100', maxNotionalUsd: '2100',
   realizedPnl: '75', totalFees: '1', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-14T10:00:00Z'), closedAt: T('2026-01-14T12:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-14T10:00:00Z'),
 }
@@ -101,6 +106,7 @@ const pos_eth_spot = {
   size: '1', notionalUsd: '2000', maxNotionalUsd: '2000',
   realizedPnl: '30', totalFees: '1', fundingPnl: '0',
   wasLiquidated: false, needsReview: false,
+  rMultiple: null, maxDrawdownPct: null,
   openedAt: T('2026-01-15T14:00:00Z'), closedAt: T('2026-01-15T16:00:00Z'),
   derivationVersion: 1, createdAt: T('2026-01-15T14:00:00Z'),
 }

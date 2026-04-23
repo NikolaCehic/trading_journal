@@ -32,6 +32,8 @@ export type Position = {
   fundingPnl: number
   wasLiquidated: boolean
   needsReview: boolean
+  rMultiple: number | null
+  maxDrawdownPct: number | null
   openedAt: Date
   closedAt: Date | null
   fills: PositionFillRef[]

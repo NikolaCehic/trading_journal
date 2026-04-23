@@ -79,6 +79,26 @@ function finalize(b: Builder, closedAt: Date | null): Position {
   const entryAvgPrice = b.currentAvgEntry
   const exitAvgPrice = b.totalExitSize > 0 ? b.weightedExitSum / b.totalExitSize : null
   const firstFillId = b.fills[0]?.fillId ?? 'unknown'
+
+  // v1: 1R = 1% of entry notional. Real stop-loss tracking deferred.
+  const oneR = entryAvgPrice * 0.01
+  const riskUsd = oneR * b.totalOpenSize
+  const rMultiple = riskUsd > 0 ? b.realizedPnl / riskUsd : null
+
+  // Max intra-trade adverse excursion approximated from fill prices.
+  // For longs: track fills that print below entryAvgPrice (adverse dip).
+  // For shorts: track fills that print above entryAvgPrice (adverse spike).
+  let maxDrawdownPct: number | null = null
+  for (const fill of b.fills) {
+    if (b.side === 'long' && fill.price < entryAvgPrice) {
+      const dip = (fill.price - entryAvgPrice) / entryAvgPrice // negative
+      maxDrawdownPct = Math.min(maxDrawdownPct ?? 0, dip)
+    } else if (b.side === 'short' && fill.price > entryAvgPrice) {
+      const spike = (entryAvgPrice - fill.price) / entryAvgPrice // negative
+      maxDrawdownPct = Math.min(maxDrawdownPct ?? 0, spike)
+    }
+  }
+
   return {
     id: positionId(b.userId, b.symbol, b.openedAt, firstFillId),
     userId: b.userId,
@@ -96,6 +116,8 @@ function finalize(b: Builder, closedAt: Date | null): Position {
     fundingPnl: 0,
     wasLiquidated: b.wasLiquidated,
     needsReview: false,
+    rMultiple,
+    maxDrawdownPct,
     openedAt: b.openedAt,
     closedAt,
     fills: b.fills,

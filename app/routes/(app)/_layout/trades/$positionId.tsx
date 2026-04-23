@@ -234,10 +234,19 @@ function MetricChipsRow({ bundle }: { bundle: TradeDetailBundle }) {
   const sellCount = fills.length - buyCount
   const fillsHint = `${buyCount} buy · ${sellCount} sell`
 
+  const rMultipleValue = p.rMultiple !== null ? p.rMultiple.toFixed(2) + 'R' : '—'
+  const rMultipleHint = p.rMultiple !== null ? '1R = 1% of entry' : undefined
+  const rMultipleColor = p.rMultiple !== null
+    ? (p.rMultiple >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)')
+    : undefined
+
+  const maxDdValue = p.maxDrawdownPct !== null ? (p.maxDrawdownPct * 100).toFixed(2) + '%' : '—'
+  const maxDdHint = p.maxDrawdownPct !== null ? 'mid-trade' : undefined
+
   return (
     <div style={{ display: 'flex', gap: 10 }}>
-      <MetricChip label="R multiple" value="—" />
-      <MetricChip label="Max drawdown" value="—" />
+      <MetricChip label="R multiple" value={rMultipleValue} hint={rMultipleHint} valueColor={rMultipleColor} />
+      <MetricChip label="Max drawdown" value={maxDdValue} hint={maxDdHint} valueColor={p.maxDrawdownPct !== null ? 'var(--pnl-down)' : undefined} />
       <MetricChip label="Fees" value={fmtUSD(p.totalFees)} hint={feesHint} />
       {p.instrumentType === 'perp' && (
         <MetricChip label="Funding" value={fmtUSD(p.fundingPnl, { showPlus: true })} />

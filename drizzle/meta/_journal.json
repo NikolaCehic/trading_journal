@@ -43,6 +43,13 @@
       "when": 1776936333168,
       "tag": "0005_wandering_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776936593848,
+      "tag": "0006_fuzzy_post",
+      "breakpoints": true
     }
   ]
 }
