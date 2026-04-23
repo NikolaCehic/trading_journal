@@ -4,7 +4,7 @@ import { importRecord } from '~/db/schema/ingestion'
 import { eq } from 'drizzle-orm'
 import { runDerivation } from '~/derivation/runner'
 import { DERIVATION_VERSION } from '~/derivation/version'
-import { sendDerivationComplete } from './events'
+import { sendDerivationComplete, sendPlanAutoMatch } from './events'
 import { log } from '~/lib/log'
 
 export const deriveOnIngestionCompleteFn = inngest.createFunction(
@@ -28,6 +28,9 @@ export const deriveOnIngestionCompleteFn = inngest.createFunction(
     )
     await step.run('emit-complete', () =>
       sendDerivationComplete({ userId, derivationVersion: DERIVATION_VERSION, ...result }),
+    )
+    await step.run('emit-plan-auto-match', () =>
+      sendPlanAutoMatch({ userId }),
     )
     await step.run('mark-complete', async () => {
       if (importId) {
@@ -53,6 +56,9 @@ export const rederiveFn = inngest.createFunction(
     )
     await step.run('emit-complete', () =>
       sendDerivationComplete({ userId, derivationVersion, ...result }),
+    )
+    await step.run('emit-plan-auto-match', () =>
+      sendPlanAutoMatch({ userId }),
     )
     return result
   },

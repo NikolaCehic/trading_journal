@@ -42,6 +42,15 @@ export async function sendDerivationRederive(data: DerivationRederivePayload['da
   await inngest.send({ name: 'derivation/rederive', data })
 }
 
+export type PlanAutoMatchPayload = {
+  name: 'plan/auto-match'
+  data: { userId: string }
+}
+
+export async function sendPlanAutoMatch(data: PlanAutoMatchPayload['data']) {
+  await inngest.send({ name: 'plan/auto-match', data })
+}
+
 export type DigestComposePayload = {
   name: 'digest/compose'
   data: { userId: string; isoWeek: string }

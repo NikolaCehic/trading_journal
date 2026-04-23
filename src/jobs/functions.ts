@@ -3,6 +3,7 @@ import { inngest } from './client'
 import { hlWalletPullFn } from './ingestion'
 import { deriveOnIngestionCompleteFn, rederiveFn } from './derivation'
 import { digestWeeklyScheduler, composeDigestFn, sendDigestFn } from './narrator'
+import { autoMatchPlansFn } from './planMatcher'
 
 const heartbeat = inngest.createFunction(
   { id: 'heartbeat', name: 'Heartbeat', triggers: [cron('0 * * * *')] },
@@ -17,4 +18,5 @@ export const functions = [
   digestWeeklyScheduler,
   composeDigestFn,
   sendDigestFn,
+  autoMatchPlansFn,
 ]
