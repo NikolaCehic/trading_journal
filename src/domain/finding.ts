@@ -13,6 +13,7 @@ export type DetectorId =
   | 'short_hold_scalping'
   | 'symbol_underperformance'
   | 'leverage_creep'
+  | 'plan_adherence'
 
 export type Finding<TEvidence = unknown> = {
   id: string

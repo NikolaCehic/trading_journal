@@ -10,6 +10,7 @@ import { ScalingIntoLosersDetector } from './scaling-into-losers'
 import { ShortHoldScalpingDetector } from './short-hold-scalping'
 import { SymbolUnderperformanceDetector } from './symbol-underperformance'
 import { LeverageCreepDetector } from './leverage-creep'
+import { PlanAdherenceDetector } from './plan-adherence'
 
 export const DETECTORS: Detector[] = [
   new RevengeTradingDetector(),
@@ -23,4 +24,5 @@ export const DETECTORS: Detector[] = [
   new ShortHoldScalpingDetector(),
   new SymbolUnderperformanceDetector(),
   new LeverageCreepDetector(),
+  new PlanAdherenceDetector(),
 ]

@@ -12,6 +12,7 @@ function buildCtx(positions: Position[]): DerivationContext {
     now: new Date(),
     fills: [],
     positions,
+    planMap: new Map(),
     summary: { totalPnl: 0, grossProfit: 0, grossLoss: 0, totalFees: 0, winRate: 0, expectancy: 0,
                avgWin: 0, avgLoss: 0, profitFactor: null, maxDrawdown: 0, tradeCount: 0,
                medianPositionSizeUsd: 400 },
@@ -26,7 +27,7 @@ function pos(o: { id: string; pnl: number; notionalUsd: number; openedAt: Date; 
     notionalUsd: o.notionalUsd, maxNotionalUsd: o.notionalUsd,
     realizedPnl: o.pnl, totalFees: 0.4, fundingPnl: 0,
     wasLiquidated: false, needsReview: false,
-    rMultiple: null, maxDrawdownPct: null,
+    rMultiple: null, maxDrawdownPct: null, planId: null,
     openedAt: o.openedAt, closedAt: o.closedAt, fills: [], derivationVersion: 1,
   }
 }

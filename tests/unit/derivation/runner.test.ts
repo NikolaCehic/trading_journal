@@ -18,7 +18,7 @@ describe('derivation runner (in-memory, no DB)', () => {
     const summary = computeSummaryRollup(positions, daily)
     const ctx: DerivationContext = {
       userId: 'u1', derivationVersion: 1, now: new Date('2024-02-01'),
-      fills, positions, daily, asset, session, summary,
+      fills, positions, planMap: new Map(), daily, asset, session, summary,
     }
     const findings = DETECTORS.flatMap(d => d.run(ctx))
     expect(findings).toHaveLength(0)

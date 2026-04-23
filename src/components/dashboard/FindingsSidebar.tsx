@@ -19,6 +19,7 @@ const DETECTOR_LABELS: Record<string, string> = {
   short_hold_scalping: 'Short-hold scalping',
   symbol_underperformance: 'Symbol underperformance',
   leverage_creep: 'Leverage creep',
+  plan_adherence: 'Plan adherence',
 }
 
 function severityToLevel(severity: FindingSeverity): 'red' | 'amber' | 'neutral' {

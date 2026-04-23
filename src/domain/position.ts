@@ -34,6 +34,7 @@ export type Position = {
   needsReview: boolean
   rMultiple: number | null
   maxDrawdownPct: number | null
+  planId: string | null
   openedAt: Date
   closedAt: Date | null
   fills: PositionFillRef[]

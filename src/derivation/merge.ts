@@ -118,6 +118,7 @@ function finalize(b: Builder, closedAt: Date | null): Position {
     needsReview: false,
     rMultiple,
     maxDrawdownPct,
+    planId: null,
     openedAt: b.openedAt,
     closedAt,
     fills: b.fills,

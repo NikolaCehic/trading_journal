@@ -40,6 +40,7 @@ export async function persistDerivation(
       needsReview: p.needsReview,
       rMultiple: p.rMultiple != null ? String(p.rMultiple) : null,
       maxDrawdownPct: p.maxDrawdownPct != null ? String(p.maxDrawdownPct) : null,
+      planId: p.planId ?? null,
       openedAt: p.openedAt, closedAt: p.closedAt,
       derivationVersion: version,
     })))

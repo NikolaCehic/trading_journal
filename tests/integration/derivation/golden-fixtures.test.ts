@@ -36,7 +36,7 @@ describe.each(CASES)('golden fixture: $fixture', ({ fixture, expect: expected, n
     const ctx: DerivationContext = {
       userId: 'u1', derivationVersion: 1,
       now: now ?? new Date('2024-02-01T00:00Z'),
-      fills, positions, daily, asset, session, summary,
+      fills, positions, planMap: new Map(), daily, asset, session, summary,
     }
     const findings = DETECTORS.flatMap(d => d.run(ctx))
     const ids = findings.map(f => f.detectorId)

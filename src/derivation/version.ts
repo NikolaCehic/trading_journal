@@ -4,4 +4,8 @@
 //
 // v2: Added dayOfWeekMetric table (7×24 heatmap by day-of-week + hour-of-day).
 //     Users must run `pnpm rederive` after deploy to populate the new metric.
-export const DERIVATION_VERSION = 2
+//
+// v3: Added plan_adherence detector + position.planId field threading through
+//     derivation context. Users must run `pnpm rederive` after deploy so that
+//     plan links are re-attached and findings are generated at the new version.
+export const DERIVATION_VERSION = 3

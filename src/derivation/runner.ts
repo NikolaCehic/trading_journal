@@ -1,6 +1,8 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import type { DB } from '~/db/client'
 import { fill as fillTable } from '~/db/schema/canonical'
+import { position as positionTable } from '~/db/schema/derivation'
+import { tradePlan } from '~/db/schema/journal'
 import { mergeFillsIntoPositions } from './merge'
 import { computeDailyMetrics } from './metrics/daily'
 import { computeAssetMetrics } from './metrics/asset'
@@ -35,12 +37,38 @@ export async function runDerivation(args: RunDerivationArgs) {
   })) as (CanonicalFill & { id: string })[]
 
   const positions = mergeFillsIntoPositions(userId, fills, version)
+
+  // Re-attach planId associations from existing position rows (set independently via linkPositionToPlan).
+  // Position IDs are deterministic (derived from fills), so we can look them up before re-persisting.
+  const positionIds = positions.map(p => p.id)
+  const existingPlanLinks = positionIds.length
+    ? await db
+        .select({ id: positionTable.id, planId: positionTable.planId })
+        .from(positionTable)
+        .where(inArray(positionTable.id, positionIds))
+    : []
+  const planLinkMap = new Map(
+    existingPlanLinks
+      .filter((r): r is { id: string; planId: string } => r.planId != null)
+      .map(r => [r.id, r.planId]),
+  )
+  for (const pos of positions) {
+    pos.planId = planLinkMap.get(pos.id) ?? null
+  }
+
+  // Build plan lookup map for detectors
+  const planIds = positions.map(p => p.planId).filter((x): x is string => x != null)
+  const plans = planIds.length
+    ? await db.select().from(tradePlan).where(inArray(tradePlan.id, planIds))
+    : []
+  const planMap = new Map(plans.map(p => [p.id, p]))
+
   const daily = computeDailyMetrics(positions)
   const asset = computeAssetMetrics(positions)
   const session = computeSessionMetrics(positions)
   const dowMetrics = computeDayOfWeekMetrics(positions)
   const summary = computeSummaryRollup(positions, daily)
-  const ctx: DerivationContext = { userId, derivationVersion: version, now, fills, positions, daily, asset, session, summary }
+  const ctx: DerivationContext = { userId, derivationVersion: version, now, fills, positions, planMap, daily, asset, session, summary }
   const findings = DETECTORS.flatMap(d => {
     try { return d.run(ctx) }
     catch (err) { log.error('detector threw', { id: d.id, err: String(err) }); return [] }

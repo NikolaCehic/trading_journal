@@ -13,13 +13,14 @@ function p(id: string, notional: number, openDaysAgo: number, now: Date): Positi
     notionalUsd: notional, maxNotionalUsd: notional,
     realizedPnl: 0, totalFees: 0.2, fundingPnl: 0,
     wasLiquidated: false, needsReview: false,
-    rMultiple: null, maxDrawdownPct: null,
+    rMultiple: null, maxDrawdownPct: null, planId: null,
     openedAt: new Date(t), closedAt: new Date(t + 3600000), fills: [], derivationVersion: 1,
   }
 }
 function ctx(now: Date, positions: Position[]): DerivationContext {
   return {
     userId: 'u1', derivationVersion: 1, now, fills: [], positions,
+    planMap: new Map(),
     summary: { totalPnl: 0, grossProfit: 0, grossLoss: 0, totalFees: 0, winRate: 0, expectancy: 0,
                avgWin: 0, avgLoss: 0, profitFactor: null, maxDrawdown: 0, tradeCount: 0, medianPositionSizeUsd: 400 },
     daily: [], asset: [], session: [],

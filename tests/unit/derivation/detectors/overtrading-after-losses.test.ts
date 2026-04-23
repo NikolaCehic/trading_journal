@@ -6,6 +6,7 @@ import type { DailyMetricValue } from '~/domain/metrics'
 function ctx(daily: DailyMetricValue[]): DerivationContext {
   return {
     userId: 'u1', derivationVersion: 1, now: new Date(), fills: [], positions: [],
+    planMap: new Map(),
     summary: { totalPnl: 0, grossProfit: 0, grossLoss: 0, totalFees: 0, winRate: 0, expectancy: 0,
                avgWin: 0, avgLoss: 0, profitFactor: null, maxDrawdown: 0, tradeCount: 0, medianPositionSizeUsd: 0 },
     daily, asset: [], session: [],

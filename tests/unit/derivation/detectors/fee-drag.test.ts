@@ -6,6 +6,7 @@ import type { SummaryRollupValue } from '~/domain/metrics'
 function ctx(summary: Partial<SummaryRollupValue>): DerivationContext {
   return {
     userId: 'u1', derivationVersion: 1, now: new Date(), fills: [], positions: [],
+    planMap: new Map(),
     summary: { totalPnl: 100, grossProfit: 200, grossLoss: 100, totalFees: 20, winRate: 0.5,
                expectancy: 5, avgWin: 10, avgLoss: -10, profitFactor: 2, maxDrawdown: 0,
                tradeCount: 40, medianPositionSizeUsd: 400, ...summary },
