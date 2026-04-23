@@ -1,10 +1,11 @@
 import {
-  pgTable, text, timestamp, integer, boolean, jsonb,
+  pgTable, text, timestamp, integer, boolean, jsonb, numeric,
   unique, index, pgEnum,
 } from 'drizzle-orm/pg-core'
 import { user } from './auth'
 import { position } from './derivation'
 
+export const planSideEnum = pgEnum('plan_side', ['long', 'short'])
 export const tagKindEnum = pgEnum('tag_kind', ['setup', 'mistake'])
 export const emotionalStateEnum = pgEnum('emotional_state', [
   'calm', 'fomo', 'revenge', 'bored', 'anxious', 'confident',
@@ -70,3 +71,21 @@ export const positionReflection = pgTable('position_reflection', {
 }, (t) => [
   unique('position_reflection_unique').on(t.userId, t.positionId),
 ])
+
+export const tradePlan = pgTable('trade_plan', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  symbol: text('symbol').notNull(),
+  intendedSide: planSideEnum('intended_side').notNull(),
+  entryPrice: numeric('entry_price', { precision: 20, scale: 8 }),
+  stopPrice: numeric('stop_price', { precision: 20, scale: 8 }),
+  targetPrice: numeric('target_price', { precision: 20, scale: 8 }),
+  plannedSize: numeric('planned_size', { precision: 20, scale: 8 }),
+  rationale: text('rationale'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+}, (t) => [
+  index('trade_plan_user_symbol_idx').on(t.userId, t.symbol),
+])
+
+export type TradePlanRow = typeof tradePlan.$inferSelect

@@ -4,6 +4,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { user } from './auth'
 import { fill, instrumentTypeEnum } from './canonical'
+import { tradePlan } from './journal'
 
 export const positionSideEnum = pgEnum('position_side', ['long', 'short'])
 export const positionFillRoleEnum = pgEnum('position_fill_role', ['open', 'add', 'reduce', 'close'])
@@ -28,6 +29,7 @@ export const position = pgTable('position', {
   needsReview: boolean('needs_review').notNull().default(false),
   rMultiple: numeric('r_multiple', { precision: 20, scale: 8 }),
   maxDrawdownPct: numeric('max_drawdown_pct', { precision: 10, scale: 6 }),
+  planId: text('plan_id').references(() => tradePlan.id, { onDelete: 'set null' }),
   openedAt: timestamp('opened_at', { withTimezone: true }).notNull(),
   closedAt: timestamp('closed_at', { withTimezone: true }),
   derivationVersion: integer('derivation_version').notNull(),
