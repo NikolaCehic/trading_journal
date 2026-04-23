@@ -1,6 +1,6 @@
 import {
   pgTable, text, timestamp, numeric, jsonb, integer, boolean,
-  unique, index, pgEnum,
+  unique, index, pgEnum, primaryKey,
 } from 'drizzle-orm/pg-core'
 import { user } from './auth'
 import { fill, instrumentTypeEnum } from './canonical'
@@ -110,6 +110,22 @@ export const summaryRollup = pgTable('summary_rollup', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique('summary_rollup_unique').on(t.userId, t.derivationVersion),
+])
+
+// Day-of-week × hour heatmap metric.
+// dayOfWeekUtc uses ISO 8601 style: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6.
+// Derived from: ((new Date(closedAt).getUTCDay() + 6) % 7)
+export const dayOfWeekMetric = pgTable('day_of_week_metric', {
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  dayOfWeekUtc: integer('day_of_week_utc').notNull(),
+  hourOfDayUtc: integer('hour_of_day_utc').notNull(),
+  tradeCount: integer('trade_count').notNull().default(0),
+  realizedPnl: numeric('realized_pnl', { precision: 36, scale: 18 }).notNull().default('0'),
+  winRate: numeric('win_rate', { precision: 8, scale: 6 }).notNull().default('0'),
+  expectancy: numeric('expectancy', { precision: 36, scale: 18 }).notNull().default('0'),
+  derivationVersion: integer('derivation_version').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.dayOfWeekUtc, t.hourOfDayUtc, t.derivationVersion] }),
 ])
 
 export const finding = pgTable('finding', {

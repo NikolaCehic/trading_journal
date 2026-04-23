@@ -5,6 +5,7 @@ import { mergeFillsIntoPositions } from './merge'
 import { computeDailyMetrics } from './metrics/daily'
 import { computeAssetMetrics } from './metrics/asset'
 import { computeSessionMetrics } from './metrics/session'
+import { computeDayOfWeekMetrics } from './metrics/dayOfWeek'
 import { computeSummaryRollup } from './metrics/summary'
 import { DETECTORS } from './detectors'
 import type { DerivationContext } from './detectors/types'
@@ -37,6 +38,7 @@ export async function runDerivation(args: RunDerivationArgs) {
   const daily = computeDailyMetrics(positions)
   const asset = computeAssetMetrics(positions)
   const session = computeSessionMetrics(positions)
+  const dowMetrics = computeDayOfWeekMetrics(positions)
   const summary = computeSummaryRollup(positions, daily)
   const ctx: DerivationContext = { userId, derivationVersion: version, now, fills, positions, daily, asset, session, summary }
   const findings = DETECTORS.flatMap(d => {
@@ -44,7 +46,7 @@ export async function runDerivation(args: RunDerivationArgs) {
     catch (err) { log.error('detector threw', { id: d.id, err: String(err) }); return [] }
   })
 
-  await persistDerivation(db, userId, version, positions, daily, asset, session, summary, findings)
+  await persistDerivation(db, userId, version, positions, daily, asset, session, dowMetrics, summary, findings)
 
   log.info('derivation: done', { userId, version, positions: positions.length, findings: findings.length })
   return { positionCount: positions.length, findingCount: findings.length }

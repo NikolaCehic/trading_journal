@@ -26,6 +26,16 @@ export type SessionMetricValue = {
   expectancy: number
 }
 
+// ISO 8601 day convention: Mon=0, Tue=1, ..., Sun=6
+export type DayOfWeekMetricValue = {
+  dayOfWeekUtc: number // 0=Mon..6=Sun
+  hourOfDayUtc: number // 0..23
+  tradeCount: number
+  realizedPnl: number
+  winRate: number
+  expectancy: number
+}
+
 export type SummaryRollupValue = {
   totalPnl: number
   grossProfit: number

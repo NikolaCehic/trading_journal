@@ -6,7 +6,7 @@ import { auth } from '~/auth/server'
 import { db } from '~/db/client'
 import type { DB } from '~/db/client'
 import {
-  finding, position,
+  finding, position, dayOfWeekMetric,
 } from '~/db/schema/derivation'
 import { positionFill } from '~/db/schema/derivation'
 import { fill } from '~/db/schema/canonical'
@@ -257,31 +257,62 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
     })
 
     // -----------------------------------------------------------------------
-    // 6. Heatmap — aggregate per (hourOfDayUtc, dayOfWeekUtc) from closed positions
+    // 6. Heatmap — aggregate per (hourOfDayUtc, dayOfWeekUtc) from closed positions.
+    //    Fast path: when no symbol/instrument/setupTag filters are active, read
+    //    directly from the pre-computed dayOfWeekMetric table (populated by the
+    //    derivation engine). Falls back to on-the-fly computation when any
+    //    filter is active (filtered positionRows are already in scope).
     // -----------------------------------------------------------------------
-    type HeatKey = `${number}:${number}`
-    const heatMap = new Map<HeatKey, { pnlSum: number; count: number }>()
-    for (const r of positionRows) {
-      if (!r.closedAt) continue
-      const h = r.closedAt.getUTCHours()
-      const d = r.closedAt.getUTCDay()
-      const key: HeatKey = `${h}:${d}`
-      const cell = heatMap.get(key) ?? { pnlSum: 0, count: 0 }
-      cell.pnlSum += Number(r.realizedPnl)
-      cell.count += 1
-      heatMap.set(key, cell)
+    const noFilters =
+      filters.symbols.length === 0 &&
+      filters.instrument === 'all' &&
+      filters.setupTagIds.length === 0
+
+    let heatmap: DashboardBundle['heatmap']
+
+    if (noFilters) {
+      // Fast path: read pre-computed dayOfWeekMetric rows for this user + version
+      const dowWhere = [
+        eq(dayOfWeekMetric.userId, userId),
+        eq(dayOfWeekMetric.derivationVersion, version),
+      ]
+      const dowRows = await db.select().from(dayOfWeekMetric).where(and(...dowWhere))
+      heatmap = dowRows.map(r => ({
+        hourOfDayUtc: r.hourOfDayUtc,
+        dayOfWeekUtc: r.dayOfWeekUtc,
+        tradeCount: r.tradeCount,
+        expectancy: Number(r.expectancy),
+      }))
+      heatmap.sort((a, b) => a.dayOfWeekUtc - b.dayOfWeekUtc || a.hourOfDayUtc - b.hourOfDayUtc)
+    } else {
+      // Filtered path: compute on-the-fly from filtered positionRows.
+      // Note: dashboard heatmap uses JS's getUTCDay() convention (0=Sun..6=Sat)
+      // so the on-the-fly path must match the ISO convention used by the aggregator:
+      // dayOfWeekUtc = (getUTCDay() + 6) % 7  → Mon=0..Sun=6
+      type HeatKey = `${number}:${number}`
+      const heatMap = new Map<HeatKey, { pnlSum: number; count: number }>()
+      for (const r of positionRows) {
+        if (!r.closedAt) continue
+        const h = r.closedAt.getUTCHours()
+        const d = (r.closedAt.getUTCDay() + 6) % 7  // ISO: Mon=0..Sun=6
+        const key: HeatKey = `${h}:${d}`
+        const cell = heatMap.get(key) ?? { pnlSum: 0, count: 0 }
+        cell.pnlSum += Number(r.realizedPnl)
+        cell.count += 1
+        heatMap.set(key, cell)
+      }
+      heatmap = []
+      for (const [key, cell] of heatMap.entries()) {
+        const [h, d] = key.split(':').map(Number)
+        heatmap.push({
+          hourOfDayUtc: h!,
+          dayOfWeekUtc: d!,
+          tradeCount: cell.count,
+          expectancy: cell.count === 0 ? 0 : cell.pnlSum / cell.count,
+        })
+      }
+      heatmap.sort((a, b) => a.dayOfWeekUtc - b.dayOfWeekUtc || a.hourOfDayUtc - b.hourOfDayUtc)
     }
-    const heatmap: DashboardBundle['heatmap'] = []
-    for (const [key, cell] of heatMap.entries()) {
-      const [h, d] = key.split(':').map(Number)
-      heatmap.push({
-        hourOfDayUtc: h!,
-        dayOfWeekUtc: d!,
-        tradeCount: cell.count,
-        expectancy: cell.count === 0 ? 0 : cell.pnlSum / cell.count,
-      })
-    }
-    heatmap.sort((a, b) => a.dayOfWeekUtc - b.dayOfWeekUtc || a.hourOfDayUtc - b.hourOfDayUtc)
 
     // -----------------------------------------------------------------------
     // 7. Asset breakdown — group by symbol

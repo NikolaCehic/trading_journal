@@ -2,10 +2,10 @@ import { and, eq } from 'drizzle-orm'
 import type { DB } from '~/db/client'
 import {
   position as positionTable, positionFill, dailyMetric, assetMetric,
-  sessionMetric, summaryRollup, finding as findingTable,
+  sessionMetric, dayOfWeekMetric, summaryRollup, finding as findingTable,
 } from '~/db/schema/derivation'
 import type { Position } from '~/domain/position'
-import type { DailyMetricValue, AssetMetricValue, SessionMetricValue, SummaryRollupValue } from '~/domain/metrics'
+import type { DailyMetricValue, AssetMetricValue, SessionMetricValue, DayOfWeekMetricValue, SummaryRollupValue } from '~/domain/metrics'
 import type { Finding } from '~/domain/finding'
 
 export async function persistDerivation(
@@ -16,6 +16,7 @@ export async function persistDerivation(
   daily: DailyMetricValue[],
   asset: AssetMetricValue[],
   session: SessionMetricValue[],
+  dowMetrics: DayOfWeekMetricValue[],
   summary: SummaryRollupValue,
   findings: Finding[],
 ) {
@@ -94,6 +95,23 @@ export async function persistDerivation(
       realizedPnl: String(s.realizedPnl),
       winRate: String(s.winRate),
       expectancy: String(s.expectancy),
+      derivationVersion: version,
+    })))
+  }
+
+  // Day-of-week metrics
+  await db.delete(dayOfWeekMetric).where(
+    and(eq(dayOfWeekMetric.userId, userId), eq(dayOfWeekMetric.derivationVersion, version)),
+  )
+  if (dowMetrics.length) {
+    await db.insert(dayOfWeekMetric).values(dowMetrics.map(d => ({
+      userId,
+      dayOfWeekUtc: d.dayOfWeekUtc,
+      hourOfDayUtc: d.hourOfDayUtc,
+      tradeCount: d.tradeCount,
+      realizedPnl: String(d.realizedPnl),
+      winRate: String(d.winRate),
+      expectancy: String(d.expectancy),
       derivationVersion: version,
     })))
   }
