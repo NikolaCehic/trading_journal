@@ -203,7 +203,7 @@ function LandingPage() {
       body: 'Up to 100 trades in history, CSV imports, 12 detectors, weekly digest.',
       cta: 'Start free',
       primary: false,
-      items: ['Binance + Hyperliquid + Bybit + OKX imports', '12 behavioral detectors', 'Trade notes + tags', 'Weekly digest'],
+      items: ['Binance + Hyperliquid + Bybit + OKX imports', '12 built-in detectors + custom', 'Trade notes + tags', 'Weekly digest'],
     },
     {
       name: 'Pro',
@@ -266,7 +266,7 @@ function LandingPage() {
         </div>
         <div style={{ display: 'flex', gap: 32, marginTop: 48, flexWrap: 'wrap' }}>
           {[
-            ['11', 'behavioral detectors'],
+            ['12+', 'detectors · built-in + your own'],
             ['4', 'exchanges · Binance, Hyperliquid, Bybit, OKX'],
             ['0', 'keys or signatures needed'],
             ['<5s', 'from CSV to first finding'],
