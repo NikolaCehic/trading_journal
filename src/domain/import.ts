@@ -12,6 +12,7 @@ export type ImportSource =
   | 'binance-csv'
   | 'hyperliquid-csv'
   | 'hyperliquid-wallet'
+  | 'bybit-csv'
 
 export type ValidationReport = {
   valid: boolean

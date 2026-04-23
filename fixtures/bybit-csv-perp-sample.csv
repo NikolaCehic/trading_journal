@@ -1,0 +1,6 @@
+Contract,Type,Direction,Status,Filled,Qty,Price,Exec Fee,Trading Fee,Created Time,ID
+BTCUSDT,Trade,Open Long,Filled,0.15,0.15,66420.50,0,0.48,2026-04-21 14:22:18,BY001
+BTCUSDT,Trade,Open Long,Filled,0.09,0.09,66320.00,0,0.29,2026-04-21 15:10:02,BY002
+BTCUSDT,Trade,Close Long,Filled,0.24,0.24,67890.00,0,0.79,2026-04-21 18:47:41,BY003
+ETHUSDT,Trade,Open Short,Filled,2.5,2.5,"3,214.80",0,1.05,2026-04-21 09:12:00,BY004
+ETHUSDT,Trade,Close Short,Filled,2.5,2.5,"3,298.40",0,1.10,2026-04-21 11:08:00,BY005
