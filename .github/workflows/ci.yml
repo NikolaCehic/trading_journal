@@ -1,5 +1,14 @@
-name: CI
+# Required repo secrets (configure in GitHub → Settings → Secrets and variables → Actions):
+#   CI_DATABASE_URL         — a separate Neon branch for CI, pre-migrated + seeded with demo user
+#   CI_BETTER_AUTH_SECRET   — any 32+ char hex string (openssl rand -hex 32)
+#
+# The CI_DATABASE_URL points at a dedicated Neon branch. Before enabling CI on a fresh branch,
+# run locally once against CI_DATABASE_URL:
+#   DATABASE_URL=<ci-url> pnpm drizzle-kit push
+#   DATABASE_URL=<ci-url> pnpm seed:demo
+# After that, CI runs just typecheck + vitest + playwright against the seeded branch.
 
+name: CI
 on:
   pull_request:
   push:
@@ -8,7 +17,17 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+      BETTER_AUTH_SECRET: ${{ secrets.CI_BETTER_AUTH_SECRET }}
+      BETTER_AUTH_URL: http://localhost:3000
+      ANTHROPIC_API_KEY: ci-placeholder
+      AI_ENABLED: 'off'
+      GOOGLE_CLIENT_ID: ci-placeholder
+      GOOGLE_CLIENT_SECRET: ci-placeholder
+      VITE_APP_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
 
@@ -18,24 +37,28 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Lint
-        run: pnpm lint || echo "lint script not fully configured yet — skipping on first pass"
+      - name: Vitest
+        run: pnpm vitest run
 
-      - name: Test
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost/ci
-          BETTER_AUTH_SECRET: ci_secret_that_is_at_least_32_chars_long___
-          BETTER_AUTH_URL: http://localhost:3000
-          GOOGLE_CLIENT_ID: ci-client-id
-          GOOGLE_CLIENT_SECRET: ci-client-secret
-          VITE_APP_URL: http://localhost:3000
-          NODE_ENV: test
-        run: pnpm test
+      - name: Install Playwright browsers
+        run: pnpm e2e:install
+
+      - name: Playwright
+        run: pnpm e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
