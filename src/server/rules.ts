@@ -3,6 +3,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
+import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import { digestRule } from '~/db/schema/narrator'
 import { finding } from '~/db/schema/derivation'
@@ -20,7 +21,9 @@ export const adoptRule = createServerFn({ method: 'POST' })
     }).parse(v),
   )
   .handler(async ({ data }) => {
-    const userId = await requireUserId()
+    const user = await requireSessionUser()
+    assertNotDemo(user)
+    const userId = user.id
 
     // Idempotent: check for existing active rule for this detector
     const [existing] = await db
@@ -59,7 +62,9 @@ export const adoptRule = createServerFn({ method: 'POST' })
 export const archiveRule = createServerFn({ method: 'POST' })
   .inputValidator((v: unknown) => z.object({ ruleId: z.string().min(1) }).parse(v))
   .handler(async ({ data }) => {
-    const userId = await requireUserId()
+    const user = await requireSessionUser()
+    assertNotDemo(user)
+    const userId = user.id
     await db
       .update(digestRule)
       .set({ archivedAt: new Date() })
@@ -119,6 +124,13 @@ async function requireUserId(): Promise<string> {
   const s = await auth.api.getSession({ headers: req.headers })
   if (!s?.user) throw new Error('unauthorized')
   return s.user.id
+}
+
+async function requireSessionUser() {
+  const req = getRequest()
+  const s = await auth.api.getSession({ headers: req.headers })
+  if (!s?.user) throw new Error('unauthorized')
+  return s.user
 }
 
 function currentWeekRange(): { start: Date; end: Date } {

@@ -1,8 +1,9 @@
-import { createServerFn } from '@tanstack/start-client-core'
-import { getWebRequest } from 'vinxi/http'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
+import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import {
   tradeNote, setupTag, mistakeTag, positionTag, positionReflection,
@@ -26,8 +27,9 @@ const upsertNoteInput = z.object({
 export const upsertTradeNote = createServerFn({ method: 'POST' })
   .inputValidator((d: unknown) => upsertNoteInput.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
     await requireOwnership(data.positionId, userId)
     const id = `note_${userId.slice(0, 8)}_${data.positionId.slice(-12)}`
@@ -54,8 +56,9 @@ const applyTagInput = z.object({
 export const applyPositionTag = createServerFn({ method: 'POST' })
   .inputValidator((d: unknown) => applyTagInput.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
     // Batch-verify ownership: only fetch the requested positions that belong to this user
     const owned = await db.select({ id: position.id }).from(position)
@@ -82,8 +85,9 @@ const removeTagInput = z.object({
 export const removePositionTag = createServerFn({ method: 'POST' })
   .inputValidator((d: unknown) => removeTagInput.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
     const conds = [
       eq(positionTag.userId, userId),
@@ -106,8 +110,9 @@ const createTagInput = z.object({
 export const createTag = createServerFn({ method: 'POST' })
   .inputValidator((d: unknown) => createTagInput.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
     const slug = data.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40)
     if (data.kind === 'setup') {
@@ -133,8 +138,9 @@ const upsertReflectionInput = z.object({
 export const upsertReflection = createServerFn({ method: 'POST' })
   .inputValidator((d: unknown) => upsertReflectionInput.parse(d))
   .handler(async ({ data }) => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
     await requireOwnership(data.positionId, userId)
     const id = `pr_${userId.slice(0, 8)}_${data.positionId.slice(-12)}`
@@ -157,7 +163,7 @@ export const upsertReflection = createServerFn({ method: 'POST' })
 // --- Tag list (used by tag picker in Task 15) ---
 export const listTags = createServerFn({ method: 'GET' })
   .handler(async () => {
-    const session = await auth.api.getSession({ headers: getWebRequest().headers })
+    const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
     const userId = session.user.id
     const setup = await db.select().from(setupTag).where(and(eq(setupTag.userId, userId), eq(setupTag.isArchived, false)))

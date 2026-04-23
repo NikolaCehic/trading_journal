@@ -1,6 +1,7 @@
-import { createServerFn } from '@tanstack/start-client-core'
-import { getWebRequest } from 'vinxi/http'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { auth } from '~/auth/server'
+import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import { importRecord, exchangeAccount } from '~/db/schema/ingestion'
 import { BinanceCsvAdapter } from '~/ingestion/adapters/binance-csv'
@@ -18,7 +19,7 @@ const validateCsvInput = z.object({
 export const validateCsvImport = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => validateCsvInput.parse(data))
   .handler(async ({ data }) => {
-    const request = getWebRequest()
+    const request = getRequest()
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
 
@@ -38,9 +39,10 @@ const startCsvImportInput = z.object({
 export const startCsvImport = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => startCsvImportInput.parse(data))
   .handler(async ({ data }) => {
-    const request = getWebRequest()
+    const request = getRequest()
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
 
     const userId = session.user.id
     const importId = `imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -93,9 +95,10 @@ const startWalletImportInput = z.object({
 export const startWalletImport = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => startWalletImportInput.parse(data))
   .handler(async ({ data }) => {
-    const request = getWebRequest()
+    const request = getRequest()
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
 
     const userId = session.user.id
     const importId = `imp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -150,7 +153,7 @@ type SerializedImportRecord = {
 }
 
 export const getImportHistory = createServerFn({ method: 'GET' }).handler(async () => {
-  const request = getWebRequest()
+  const request = getRequest()
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -165,7 +168,7 @@ export const getImportHistory = createServerFn({ method: 'GET' }).handler(async 
 export const getImportStatus = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => z.object({ importId: z.string() }).parse(data))
   .handler(async ({ data }) => {
-    const request = getWebRequest()
+    const request = getRequest()
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
 
