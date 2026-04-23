@@ -12,58 +12,28 @@ import { previewCustomDetector } from '~/server/customDetectorsPreview'
 import { Segmented } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 import type { PositionPredicate, UserDetectorDefinition } from '~/domain/userDetector'
+import {
+  type Composition,
+  type LeafCondition,
+  type GroupNode,
+  type Node,
+  FIELD_LABELS,
+  NUMERIC_FIELDS,
+  ENUM_FIELDS,
+  STRING_FIELDS,
+  NUMERIC_OPS,
+  nodeToPredicate,
+  makeDefaultLeaf,
+  makeDefaultRoot,
+  nodeHasValues,
+  rootNodeFromPredicate,
+} from '~/domain/detectorForm'
 
 export const Route = createFileRoute('/(app)/_layout/detectors/$detectorId')({
   component: DetectorDetailPage,
 })
 
-// ── types ────────────────────────────────────────────────────────────────────
-
-type FieldKey =
-  | 'symbol'
-  | 'instrumentType'
-  | 'side'
-  | 'dayOfWeekUtc'
-  | 'hourOfDayUtc'
-  | 'pnl'
-  | 'pnlPct'
-  | 'holdDurationMins'
-  | 'hasTag'
-  | 'minLossStreak'
-
-type NumericOp = 'eq' | 'lt' | 'lte' | 'gt' | 'gte'
-
-type Condition = {
-  id: string
-  field: FieldKey
-  operator: NumericOp | 'eq' | 'in'
-  value: string
-}
-
-const FIELD_LABELS: Record<FieldKey, string> = {
-  symbol: 'Symbol',
-  instrumentType: 'Instrument type',
-  side: 'Side',
-  dayOfWeekUtc: 'Day of week (UTC)',
-  hourOfDayUtc: 'Hour of day (UTC)',
-  pnl: 'PnL (USD)',
-  pnlPct: 'PnL %',
-  holdDurationMins: 'Hold duration (mins)',
-  hasTag: 'Has tag (label)',
-  minLossStreak: 'Min loss streak',
-}
-
-const NUMERIC_FIELDS = new Set<FieldKey>(['dayOfWeekUtc', 'hourOfDayUtc', 'pnl', 'pnlPct', 'holdDurationMins'])
-const ENUM_FIELDS = new Set<FieldKey>(['instrumentType', 'side'])
-const STRING_FIELDS = new Set<FieldKey>(['symbol'])
-
-const NUMERIC_OPS: Array<{ value: NumericOp; label: string }> = [
-  { value: 'eq', label: '=' },
-  { value: 'lt', label: '<' },
-  { value: 'lte', label: '≤' },
-  { value: 'gt', label: '>' },
-  { value: 'gte', label: '≥' },
-]
+// ── severity helpers ──────────────────────────────────────────────────────────
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: 'var(--fg-muted)',
@@ -77,95 +47,290 @@ const SEVERITY_BG: Record<string, string> = {
   critical: 'rgba(220,38,38,0.12)',
 }
 
-// ── predicate builder helpers ─────────────────────────────────────────────────
+// ── LeafEditor ────────────────────────────────────────────────────────────────
 
-// v1: flat composition only — no nested grouping, no `not` UI
-function buildPredicate(conditions: Condition[], composition: 'all' | 'any'): PositionPredicate {
-  const leaves = conditions.map(toLeafPredicate).filter(l => Object.keys(l).length > 0)
-  if (leaves.length === 0) return {}
-  if (leaves.length === 1) return leaves[0]!
-  return composition === 'all' ? { all: leaves } : { any: leaves }
+function LeafEditor({
+  leaf,
+  onChange,
+  onRemove,
+}: {
+  leaf: LeafCondition
+  onChange: (next: LeafCondition) => void
+  onRemove: () => void
+}) {
+  const fieldType = NUMERIC_FIELDS.has(leaf.field)
+    ? 'numeric'
+    : ENUM_FIELDS.has(leaf.field)
+      ? 'enum'
+      : STRING_FIELDS.has(leaf.field)
+        ? 'string'
+        : 'fixed'
+
+  function handleFieldChange(newField: LeafCondition['field']) {
+    const defaultOp = NUMERIC_FIELDS.has(newField) ? 'lt' : 'eq'
+    onChange({ ...leaf, field: newField, operator: defaultOp, value: '' })
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto 1fr auto', gap: 8, alignItems: 'center' }}>
+      <select className="tj-input" value={leaf.field} onChange={(e) => handleFieldChange(e.target.value as LeafCondition['field'])} style={{ fontSize: 13 }}>
+        {(Object.keys(FIELD_LABELS) as LeafCondition['field'][]).map(f => (
+          <option key={f} value={f}>{FIELD_LABELS[f]}</option>
+        ))}
+      </select>
+
+      {fieldType === 'numeric' && (
+        <select className="tj-input" value={leaf.operator} onChange={(e) => onChange({ ...leaf, operator: e.target.value })} style={{ fontSize: 13, minWidth: 48 }}>
+          {NUMERIC_OPS.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
+        </select>
+      )}
+      {fieldType === 'string' && (
+        <select className="tj-input" value={leaf.operator} onChange={(e) => onChange({ ...leaf, operator: e.target.value })} style={{ fontSize: 13, minWidth: 56 }}>
+          <option value="eq">is</option>
+          <option value="in">in</option>
+        </select>
+      )}
+      {(fieldType === 'enum' || fieldType === 'fixed') && (
+        <span style={{ fontSize: 12, color: 'var(--fg-subtle)', padding: '0 4px' }}>
+          {leaf.field === 'minLossStreak' ? '≥' : 'is'}
+        </span>
+      )}
+
+      {leaf.field === 'instrumentType' && (
+        <select className="tj-input" value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
+          <option value="spot">spot</option>
+          <option value="perp">perp</option>
+        </select>
+      )}
+      {leaf.field === 'side' && (
+        <select className="tj-input" value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
+          <option value="long">long</option>
+          <option value="short">short</option>
+        </select>
+      )}
+      {leaf.field === 'dayOfWeekUtc' && (
+        <select className="tj-input" value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
+          <option value="0">Sunday (0)</option>
+          <option value="1">Monday (1)</option>
+          <option value="2">Tuesday (2)</option>
+          <option value="3">Wednesday (3)</option>
+          <option value="4">Thursday (4)</option>
+          <option value="5">Friday (5)</option>
+          <option value="6">Saturday (6)</option>
+        </select>
+      )}
+      {NUMERIC_FIELDS.has(leaf.field) && leaf.field !== 'dayOfWeekUtc' && (
+        <input className="tj-input" type="number" step="any" placeholder={leaf.field === 'pnlPct' ? '% e.g. -5' : leaf.field === 'holdDurationMins' ? 'minutes' : '0'} value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
+      )}
+      {(leaf.field === 'symbol' || leaf.field === 'hasTag') && (
+        <input className="tj-input" type="text" placeholder={leaf.field === 'symbol' && leaf.operator === 'in' ? 'BTC, ETH, SOL' : leaf.field === 'symbol' ? 'BTC' : 'tag label'} value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
+      )}
+      {leaf.field === 'minLossStreak' && (
+        <input className="tj-input" type="number" min="1" step="1" placeholder="e.g. 3" value={leaf.value} onChange={(e) => onChange({ ...leaf, value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
+      )}
+
+      <button type="button" className="tj-btn tj-btn-sm" onClick={onRemove} style={{ color: 'var(--pnl-down)', padding: '0 8px' }} title="Remove condition">
+        <Icon name="x" size={12} />
+      </button>
+    </div>
+  )
 }
 
-function toLeafPredicate(c: Condition): PositionPredicate {
-  switch (c.field) {
-    case 'pnl': return { pnl: { [c.operator]: Number(c.value) } }
-    case 'pnlPct': return { pnlPct: { [c.operator]: Number(c.value) / 100 } }
-    case 'hourOfDayUtc': return { hourOfDayUtc: { [c.operator]: Number(c.value) } }
-    case 'dayOfWeekUtc': return { dayOfWeekUtc: { [c.operator]: Number(c.value) } }
-    case 'holdDurationMins': return { holdDurationMins: { [c.operator]: Number(c.value) } }
-    case 'symbol':
-      return c.operator === 'in'
-        ? { symbol: { in: String(c.value).split(',').map(s => s.trim()).filter(Boolean) } }
-        : { symbol: { eq: String(c.value).trim() } }
-    case 'instrumentType': return { instrumentType: c.value as 'spot' | 'perp' }
-    case 'side': return { side: c.value as 'long' | 'short' }
-    case 'hasTag': return { hasTag: String(c.value).trim() }
-    case 'minLossStreak': return { minLossStreak: Math.max(1, Number(c.value)) }
-    default: return {}
+// ── PredicateGroupEditor ──────────────────────────────────────────────────────
+
+const MAX_DEPTH = 4
+
+function PredicateGroupEditor({
+  group,
+  depth,
+  onChange,
+  onRemove,
+}: {
+  group: GroupNode
+  depth: number
+  onChange: (next: GroupNode) => void
+  onRemove?: () => void
+}) {
+  const canNest = depth < MAX_DEPTH
+
+  function setComposition(c: Composition) {
+    const children = c === 'not' ? group.children.slice(0, 1) : group.children
+    onChange({ ...group, composition: c, children })
   }
+
+  function updateChild(idx: number, next: Node) {
+    onChange({ ...group, children: group.children.map((ch, i) => i === idx ? next : ch) })
+  }
+
+  function removeChild(idx: number) {
+    onChange({ ...group, children: group.children.filter((_, i) => i !== idx) })
+  }
+
+  function addLeaf() {
+    onChange({ ...group, children: [...group.children, makeDefaultLeaf()] })
+  }
+
+  function addGroup() {
+    onChange({ ...group, children: [...group.children, { kind: 'group', composition: 'all', children: [] } as GroupNode] })
+  }
+
+  const showAddButtons = group.composition !== 'not' || group.children.length === 0
+
+  return (
+    <div
+      style={{
+        paddingLeft: depth === 0 ? 0 : 16,
+        borderLeft: depth === 0 ? 'none' : '2px solid var(--border)',
+        marginTop: depth === 0 ? 0 : 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Segmented<Composition>
+          value={group.composition}
+          options={[
+            { value: 'all', label: 'Match ALL' },
+            { value: 'any', label: 'Match ANY' },
+            { value: 'not', label: 'NOT' },
+          ]}
+          onChange={setComposition}
+        />
+        {onRemove && (
+          <button
+            type="button"
+            className="tj-btn tj-btn-ghost tj-btn-sm"
+            onClick={onRemove}
+            style={{ fontSize: 11, color: 'var(--fg-subtle)' }}
+          >
+            <Icon name="x" size={10} /> Remove group
+          </button>
+        )}
+      </div>
+
+      {group.children.map((child, idx) => (
+        <div key={idx} style={{ marginBottom: 6 }}>
+          {child.kind === 'leaf' ? (
+            <LeafEditor
+              leaf={child}
+              onChange={(next) => updateChild(idx, next)}
+              onRemove={() => removeChild(idx)}
+            />
+          ) : (
+            <PredicateGroupEditor
+              group={child}
+              depth={depth + 1}
+              onChange={(next) => updateChild(idx, next)}
+              onRemove={() => removeChild(idx)}
+            />
+          )}
+        </div>
+      ))}
+
+      {group.composition === 'not' && group.children.length === 0 && (
+        <div style={{ fontSize: 11, color: 'var(--fg-subtle)', marginTop: 4, marginBottom: 8 }}>
+          NOT requires exactly one condition or group.
+        </div>
+      )}
+
+      {showAddButtons && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+          <button type="button" className="tj-btn tj-btn-sm" onClick={addLeaf}>
+            <Icon name="plus" size={10} /> Condition
+          </button>
+          {canNest && (
+            <button type="button" className="tj-btn tj-btn-sm" onClick={addGroup}>
+              <Icon name="plus" size={10} /> Group
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
-/** Attempt to parse a stored PositionPredicate back into flat conditions for editing. */
-function predicateToConditions(pred: PositionPredicate): { conditions: Condition[]; composition: 'all' | 'any' } {
-  let composition: 'all' | 'any' = 'all'
-  let leaves: PositionPredicate[] = []
+// ── read-only tree view ───────────────────────────────────────────────────────
 
-  if (pred.all) { composition = 'all'; leaves = pred.all }
-  else if (pred.any) { composition = 'any'; leaves = pred.any }
-  else leaves = [pred] // single leaf
-
-  const conditions: Condition[] = leaves
-    .map(l => leafToCondition(l))
-    .filter((c): c is Condition => c !== null)
-
-  if (conditions.length === 0) conditions.push(makeDefaultCondition())
-  return { conditions, composition }
+function LeafReadOnly({ leaf }: { leaf: LeafCondition }) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '5px 10px',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-default)',
+        fontSize: 13,
+        fontFamily: 'var(--font-mono)',
+      }}
+    >
+      <span style={{ color: 'var(--fg-muted)' }}>{FIELD_LABELS[leaf.field]}</span>
+      <span style={{ color: 'var(--fg-subtle)' }}>{leaf.operator}</span>
+      <span style={{ color: 'var(--fg)', fontWeight: 500 }}>{leaf.value}</span>
+    </div>
+  )
 }
 
-let _idCounter = 0
-function makeCondId() { return `cond_${++_idCounter}_${Date.now()}` }
-function makeDefaultCondition(): Condition {
-  return { id: makeCondId(), field: 'pnl', operator: 'lt', value: '' }
+function GroupReadOnly({ node, depth }: { node: Node; depth: number }) {
+  if (node.kind === 'leaf') return <LeafReadOnly leaf={node} />
+  return (
+    <div
+      style={{
+        paddingLeft: depth === 0 ? 0 : 16,
+        borderLeft: depth === 0 ? 'none' : '2px solid var(--border)',
+        marginTop: 6,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: 'var(--accent)',
+          fontFamily: 'var(--font-mono)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          marginBottom: 6,
+        }}
+      >
+        {node.composition === 'all' ? 'Match ALL' : node.composition === 'any' ? 'Match ANY' : 'NOT'}
+      </div>
+      {node.children.map((c, i) => (
+        <GroupReadOnly key={i} node={c} depth={depth + 1} />
+      ))}
+    </div>
+  )
 }
 
-function leafToCondition(l: PositionPredicate): Condition | null {
-  if (l.pnl) {
-    const [op, val] = firstEntry(l.pnl)
-    return op ? { id: makeCondId(), field: 'pnl', operator: op as NumericOp, value: String(val) } : null
-  }
-  if (l.pnlPct) {
-    const [op, val] = firstEntry(l.pnlPct)
-    return op ? { id: makeCondId(), field: 'pnlPct', operator: op as NumericOp, value: String((val as number) * 100) } : null
-  }
-  if (l.hourOfDayUtc) {
-    const [op, val] = firstEntry(l.hourOfDayUtc)
-    return op ? { id: makeCondId(), field: 'hourOfDayUtc', operator: op as NumericOp, value: String(val) } : null
-  }
-  if (l.dayOfWeekUtc) {
-    const [op, val] = firstEntry(l.dayOfWeekUtc)
-    return op ? { id: makeCondId(), field: 'dayOfWeekUtc', operator: op as NumericOp, value: String(val) } : null
-  }
-  if (l.holdDurationMins) {
-    const [op, val] = firstEntry(l.holdDurationMins)
-    return op ? { id: makeCondId(), field: 'holdDurationMins', operator: op as NumericOp, value: String(val) } : null
-  }
-  if (l.symbol) {
-    if (l.symbol.eq !== undefined) return { id: makeCondId(), field: 'symbol', operator: 'eq', value: l.symbol.eq }
-    if (l.symbol.in !== undefined) return { id: makeCondId(), field: 'symbol', operator: 'in', value: l.symbol.in.join(', ') }
-  }
-  if (l.instrumentType) return { id: makeCondId(), field: 'instrumentType', operator: 'eq', value: l.instrumentType }
-  if (l.side) return { id: makeCondId(), field: 'side', operator: 'eq', value: l.side }
-  if (l.hasTag !== undefined) return { id: makeCondId(), field: 'hasTag', operator: 'eq', value: l.hasTag }
-  if (l.minLossStreak !== undefined) return { id: makeCondId(), field: 'minLossStreak', operator: 'eq', value: String(l.minLossStreak) }
-  return null
-}
+// ── preview hook ──────────────────────────────────────────────────────────────
 
-function firstEntry(obj: Record<string, unknown>): [string | undefined, unknown] {
-  const entries = Object.entries(obj)
-  const first = entries[0]
-  if (!entries.length || !first) return [undefined, undefined]
-  return [first[0], first[1]]
+function usePreview(predicate: PositionPredicate | null) {
+  const [result, setResult] = useState<{ matched: number; total: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const keyRef = useRef<string>('')
+
+  const runPreview = useCallback(async (pred: PositionPredicate) => {
+    setLoading(true)
+    try {
+      const r = await previewCustomDetector({ data: pred })
+      setResult({ matched: r.matched, total: r.total })
+    } catch {
+      // silently ignore preview errors
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!predicate) { setResult(null); return }
+    const key = JSON.stringify(predicate)
+    if (key === keyRef.current) return
+    keyRef.current = key
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => runPreview(predicate), 600)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [predicate, runPreview])
+
+  return { result, loading }
 }
 
 // ── ui helpers ────────────────────────────────────────────────────────────────
@@ -235,165 +400,6 @@ function ToggleSwitch({
   )
 }
 
-// ── condition row (same as /new) ───────────────────────────────────────────────
-
-function ConditionRow({
-  cond,
-  onChange,
-  onRemove,
-  canRemove,
-}: {
-  cond: Condition
-  onChange: (patch: Partial<Condition>) => void
-  onRemove: () => void
-  canRemove: boolean
-}) {
-  const fieldType = NUMERIC_FIELDS.has(cond.field)
-    ? 'numeric'
-    : ENUM_FIELDS.has(cond.field)
-      ? 'enum'
-      : STRING_FIELDS.has(cond.field)
-        ? 'string'
-        : 'fixed'
-
-  function handleFieldChange(newField: FieldKey) {
-    const defaultOp = NUMERIC_FIELDS.has(newField) ? 'lt' : 'eq'
-    onChange({ field: newField, operator: defaultOp, value: '' })
-  }
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto 1fr auto', gap: 8, alignItems: 'center' }}>
-      <select className="tj-input" value={cond.field} onChange={(e) => handleFieldChange(e.target.value as FieldKey)} style={{ fontSize: 13 }}>
-        {(Object.keys(FIELD_LABELS) as FieldKey[]).map(f => (
-          <option key={f} value={f}>{FIELD_LABELS[f]}</option>
-        ))}
-      </select>
-
-      {fieldType === 'numeric' && (
-        <select className="tj-input" value={cond.operator} onChange={(e) => onChange({ operator: e.target.value as NumericOp })} style={{ fontSize: 13, minWidth: 48 }}>
-          {NUMERIC_OPS.map(op => <option key={op.value} value={op.value}>{op.label}</option>)}
-        </select>
-      )}
-      {fieldType === 'string' && (
-        <select className="tj-input" value={cond.operator} onChange={(e) => onChange({ operator: e.target.value as 'eq' | 'in' })} style={{ fontSize: 13, minWidth: 56 }}>
-          <option value="eq">is</option>
-          <option value="in">in</option>
-        </select>
-      )}
-      {(fieldType === 'enum' || fieldType === 'fixed') && (
-        <span style={{ fontSize: 12, color: 'var(--fg-subtle)', padding: '0 4px' }}>
-          {cond.field === 'minLossStreak' ? '≥' : 'is'}
-        </span>
-      )}
-
-      {cond.field === 'instrumentType' && (
-        <select className="tj-input" value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
-          <option value="spot">spot</option>
-          <option value="perp">perp</option>
-        </select>
-      )}
-      {cond.field === 'side' && (
-        <select className="tj-input" value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
-          <option value="long">long</option>
-          <option value="short">short</option>
-        </select>
-      )}
-      {cond.field === 'dayOfWeekUtc' && (
-        <select className="tj-input" value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }}>
-          <option value="0">Sunday (0)</option>
-          <option value="1">Monday (1)</option>
-          <option value="2">Tuesday (2)</option>
-          <option value="3">Wednesday (3)</option>
-          <option value="4">Thursday (4)</option>
-          <option value="5">Friday (5)</option>
-          <option value="6">Saturday (6)</option>
-        </select>
-      )}
-      {NUMERIC_FIELDS.has(cond.field) && cond.field !== 'dayOfWeekUtc' && (
-        <input className="tj-input" type="number" step="any" placeholder={cond.field === 'pnlPct' ? '% e.g. -5' : cond.field === 'holdDurationMins' ? 'minutes' : '0'} value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
-      )}
-      {(cond.field === 'symbol' || cond.field === 'hasTag') && (
-        <input className="tj-input" type="text" placeholder={cond.field === 'symbol' && cond.operator === 'in' ? 'BTC, ETH, SOL' : cond.field === 'symbol' ? 'BTC' : 'tag label'} value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
-      )}
-      {cond.field === 'minLossStreak' && (
-        <input className="tj-input" type="number" min="1" step="1" placeholder="e.g. 3" value={cond.value} onChange={(e) => onChange({ value: e.target.value })} style={{ fontSize: 13, gridColumn: 'span 2' }} />
-      )}
-
-      <button type="button" className="tj-btn tj-btn-sm" disabled={!canRemove} onClick={onRemove} style={{ color: canRemove ? 'var(--pnl-down)' : 'var(--fg-faint)', padding: '0 8px' }} title="Remove condition">
-        <Icon name="x" size={12} />
-      </button>
-    </div>
-  )
-}
-
-// ── preview hook ──────────────────────────────────────────────────────────────
-
-function usePreview(predicate: PositionPredicate | null) {
-  const [result, setResult] = useState<{ matched: number; total: number } | null>(null)
-  const [loading, setLoading] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const keyRef = useRef<string>('')
-
-  const runPreview = useCallback(async (pred: PositionPredicate) => {
-    setLoading(true)
-    try {
-      const r = await previewCustomDetector({ data: pred })
-      setResult({ matched: r.matched, total: r.total })
-    } catch {
-      // silently ignore preview errors
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!predicate) { setResult(null); return }
-    const key = JSON.stringify(predicate)
-    if (key === keyRef.current) return
-    keyRef.current = key
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => runPreview(predicate), 600)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [predicate, runPreview])
-
-  return { result, loading }
-}
-
-// ── read-only predicate view ──────────────────────────────────────────────────
-
-function PredicateView({ predicate }: { predicate: PositionPredicate }) {
-  const { conditions, composition } = predicateToConditions(predicate)
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {conditions.length > 1 && (
-        <div style={{ fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
-          {composition === 'all' ? 'All of (AND)' : 'Any of (OR)'}
-        </div>
-      )}
-      {conditions.map((c, i) => (
-        <div
-          key={c.id}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '5px 10px',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--r-default)',
-            fontSize: 13,
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          <span style={{ color: 'var(--fg-muted)' }}>{FIELD_LABELS[c.field]}</span>
-          <span style={{ color: 'var(--fg-subtle)' }}>{c.operator}</span>
-          <span style={{ color: 'var(--fg)', fontWeight: 500 }}>{c.value}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ── edit form ─────────────────────────────────────────────────────────────────
 
 function DetectorEditForm({
@@ -406,17 +412,14 @@ function DetectorEditForm({
   onSaved: () => void
 }) {
   const queryClient = useQueryClient()
-  const parsed = predicateToConditions(detector.predicate)
 
   const [name, setName] = useState(detector.name)
   const [title, setTitle] = useState(detector.title)
   const [severity, setSeverity] = useState<'info' | 'warning' | 'critical'>(detector.severity)
-  const [composition, setComposition] = useState<'all' | 'any'>(parsed.composition)
-  const [conditions, setConditions] = useState<Condition[]>(parsed.conditions)
+  const [root, setRoot] = useState<GroupNode>(() => rootNodeFromPredicate(detector.predicate))
 
   const nameValid = /^[a-z0-9_-]+$/.test(name)
-  const hasValues = conditions.some(c => c.value.trim() !== '')
-  const predicate = hasValues ? buildPredicate(conditions, composition) : null
+  const predicate = nodeHasValues(root) ? nodeToPredicate(root) : null
   const { result: preview, loading: previewLoading } = usePreview(predicate)
 
   const save = useMutation({
@@ -427,7 +430,7 @@ function DetectorEditForm({
           name: name.trim(),
           title: title.trim(),
           severity,
-          predicate: buildPredicate(conditions, composition),
+          predicate: nodeToPredicate(root),
         },
       }),
     onSuccess: () => {
@@ -438,12 +441,6 @@ function DetectorEditForm({
     },
     onError: (err) => toast.error(String(err)),
   })
-
-  function addCondition() { setConditions(prev => [...prev, makeDefaultCondition()]) }
-  function removeCondition(id: string) { setConditions(prev => prev.filter(c => c.id !== id)) }
-  function patchCondition(id: string, patch: Partial<Condition>) {
-    setConditions(prev => prev.map(c => (c.id === id ? { ...c, ...patch } : c)))
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -468,35 +465,18 @@ function DetectorEditForm({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Severity</label>
-            <Segmented<'info' | 'warning' | 'critical'>
-              value={severity}
-              options={[{ value: 'info', label: 'Info' }, { value: 'warning', label: 'Warning' }, { value: 'critical', label: 'Critical' }]}
-              onChange={setSeverity}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Composition</label>
-            <Segmented<'all' | 'any'>
-              value={composition}
-              options={[{ value: 'all', label: 'All (AND)' }, { value: 'any', label: 'Any (OR)' }]}
-              onChange={setComposition}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 320 }}>
+          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Severity</label>
+          <Segmented<'info' | 'warning' | 'critical'>
+            value={severity}
+            options={[{ value: 'info', label: 'Info' }, { value: 'warning', label: 'Warning' }, { value: 'critical', label: 'Critical' }]}
+            onChange={setSeverity}
+          />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Conditions *</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {conditions.map(cond => (
-              <ConditionRow key={cond.id} cond={cond} onChange={(p) => patchCondition(cond.id, p)} onRemove={() => removeCondition(cond.id)} canRemove={conditions.length > 1} />
-            ))}
-          </div>
-          <button type="button" className="tj-btn tj-btn-sm" onClick={addCondition} style={{ alignSelf: 'flex-start' }}>
-            <Icon name="plus" size={12} /> Add condition
-          </button>
+          <PredicateGroupEditor group={root} depth={0} onChange={setRoot} />
         </div>
 
         <div style={{ padding: '12px 16px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 'var(--r-default)', fontSize: 13, color: 'var(--fg-muted)' }}>
@@ -645,7 +625,7 @@ function DetectorDetailPage() {
             <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg-subtle)', marginBottom: 8 }}>
               Conditions
             </div>
-            <PredicateView predicate={detector.predicate} />
+            <GroupReadOnly node={rootNodeFromPredicate(detector.predicate)} depth={0} />
           </div>
 
           <div style={{ display: 'flex', gap: 20, fontSize: 12, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
