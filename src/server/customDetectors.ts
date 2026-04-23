@@ -124,3 +124,53 @@ export const deleteCustomDetector = createServerFn({ method: 'POST' })
       .where(and(eq(userDetector.id, data.id), eq(userDetector.userId, userId)))
     return { ok: true }
   })
+
+const importInput = z.object({
+  detectors: z.array(z.object({
+    name: z.string().min(1).max(64).regex(/^[a-z0-9_-]+$/, 'slug-case only'),
+    title: z.string().min(1).max(200),
+    severity: z.enum(['info', 'warning', 'critical']),
+    predicate: PositionPredicateSchema,
+    enabled: z.boolean().optional(),
+  })).max(100),
+})
+
+export const importCustomDetectors = createServerFn({ method: 'POST' })
+  .inputValidator((d: unknown) => importInput.parse(d))
+  .handler(async ({ data }): Promise<{
+    imported: number
+    skipped: number
+    errors: Array<{ name: string; error: string }>
+  }> => {
+    const userId = await requireUserMutation()
+    let imported = 0
+    let skipped = 0
+    const errors: Array<{ name: string; error: string }> = []
+
+    for (const det of data.detectors) {
+      try {
+        const [existing] = await db.select({ id: userDetector.id })
+          .from(userDetector)
+          .where(and(eq(userDetector.userId, userId), eq(userDetector.name, det.name)))
+          .limit(1)
+        if (existing) {
+          skipped++
+          continue
+        }
+        const id = generateDetectorId()
+        await db.insert(userDetector).values({
+          id, userId,
+          name: det.name,
+          title: det.title,
+          severity: det.severity,
+          predicate: det.predicate,
+          enabled: det.enabled ?? true,
+        })
+        imported++
+      } catch (err) {
+        errors.push({ name: det.name, error: String(err) })
+      }
+    }
+
+    return { imported, skipped, errors }
+  })

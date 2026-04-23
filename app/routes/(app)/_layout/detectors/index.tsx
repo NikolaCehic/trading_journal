@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { listCustomDetectors, deleteCustomDetector, toggleCustomDetector } from '~/server/customDetectors'
+import { listCustomDetectors, deleteCustomDetector, toggleCustomDetector, importCustomDetectors } from '~/server/customDetectors'
 import { getBuiltinDetectorSettings, setBuiltinDetectorEnabled } from '~/server/userPrefs'
 import { EmptyState } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { downloadFile } from '~/lib/csv'
 
 export const Route = createFileRoute('/(app)/_layout/detectors/')({ component: DetectorsPage })
 
@@ -182,6 +184,28 @@ function DetectorsPage() {
     deleteMut.mutate(id)
   }
 
+  const [importOpen, setImportOpen] = useState(false)
+
+  function exportAllDetectors() {
+    if (!rows.length) {
+      toast.info('No detectors to export')
+      return
+    }
+    const bundle = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      detectors: rows.map(d => ({
+        name: d.name,
+        title: d.title,
+        severity: d.severity,
+        predicate: d.predicate,
+        enabled: d.enabled,
+      })),
+    }
+    const name = `custom-detectors-${new Date().toISOString().slice(0, 10)}.json`
+    downloadFile(name, JSON.stringify(bundle, null, 2), 'application/json')
+  }
+
   return (
     <div className="tj-main">
       <div className="tj-card">
@@ -228,9 +252,26 @@ function DetectorsPage() {
             {rows.length} detector{rows.length === 1 ? '' : 's'} · {enabledCount} enabled
           </div>
         </div>
-        <Link to="/detectors/new" className="tj-btn tj-btn-primary tj-btn-sm" style={{ textDecoration: 'none' }}>
-          <Icon name="plus" size={12} /> New detector
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            onClick={exportAllDetectors}
+            disabled={!rows.length}
+          >
+            <Icon name="file" size={12} /> Export
+          </button>
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            onClick={() => setImportOpen(true)}
+          >
+            <Icon name="upload" size={12} /> Import
+          </button>
+          <Link to="/detectors/new" className="tj-btn tj-btn-primary tj-btn-sm" style={{ textDecoration: 'none' }}>
+            <Icon name="plus" size={12} /> New detector
+          </Link>
+        </div>
       </div>
 
       {isLoading && <DetectorsSkeleton />}
@@ -247,6 +288,8 @@ function DetectorsPage() {
           }
         />
       )}
+
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {!isLoading && rows.length > 0 && (
         <div className="tj-card" style={{ overflow: 'hidden' }}>
@@ -327,6 +370,136 @@ function DetectorsSkeleton() {
       {[0, 1, 2].map((i) => (
         <div key={i} style={{ height: 40, background: 'var(--bg-elevated)', borderRadius: 4 }} />
       ))}
+    </div>
+  )
+}
+
+type ImportResult = { imported: number; skipped: number; errors: Array<{ name: string; error: string }> }
+
+function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
+  const [result, setResult] = useState<ImportResult | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: (detectors: unknown) =>
+      importCustomDetectors({ data: { detectors } as never }),
+    onSuccess: (r) => {
+      setResult(r)
+      queryClient.invalidateQueries({ queryKey: ['detectors'] })
+      if (r.imported > 0) {
+        toast.success(
+          `Imported ${r.imported} detector${r.imported === 1 ? '' : 's'}${r.skipped ? ` · ${r.skipped} skipped` : ''}`,
+        )
+      } else if (r.skipped > 0) {
+        toast.info(`All ${r.skipped} detector${r.skipped === 1 ? '' : 's'} already exist — skipped.`)
+      }
+      if (r.errors.length > 0) toast.error(`${r.errors.length} error${r.errors.length === 1 ? '' : 's'}`)
+    },
+    onError: (err) => toast.error('Import failed: ' + String(err)),
+  })
+
+  function parseAndImport() {
+    try {
+      const parsed = JSON.parse(text) as unknown
+      const detectors = Array.isArray(parsed)
+        ? parsed
+        : (parsed as { detectors?: unknown[] }).detectors ?? []
+      if (!Array.isArray(detectors) || detectors.length === 0) {
+        toast.error('No detectors found in JSON.')
+        return
+      }
+      mutation.mutate(detectors)
+    } catch (err) {
+      toast.error('Invalid JSON: ' + String(err))
+    }
+  }
+
+  function close() {
+    setText('')
+    setResult(null)
+    onOpenChange(false)
+  }
+
+  if (!open) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onClick={close}
+    >
+      <div
+        style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r-card)',
+          padding: 24,
+          maxWidth: 560,
+          width: '90vw',
+          maxHeight: '80vh',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--fg)' }}>Import custom detectors</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>
+          Paste JSON from an export. Existing detectors with the same name will be skipped.
+        </div>
+        <textarea
+          className="tj-textarea"
+          rows={12}
+          placeholder='{"schemaVersion":1,"detectors":[...]}'
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
+        />
+        {result && (
+          <div
+            style={{
+              padding: 12,
+              background: 'var(--bg-base)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--r-default)',
+              fontSize: 13,
+              color: 'var(--fg)',
+            }}
+          >
+            Imported {result.imported} · Skipped {result.skipped} · Errors {result.errors.length}
+            {result.errors.length > 0 && (
+              <ul style={{ marginTop: 6, paddingLeft: 18, color: 'var(--pnl-down)', fontSize: 12 }}>
+                {result.errors.map((e, i) => (
+                  <li key={i}>
+                    {e.name}: {e.error}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="tj-btn" onClick={close}>
+            Close
+          </button>
+          <button
+            type="button"
+            className="tj-btn tj-btn-primary"
+            onClick={parseAndImport}
+            disabled={!text.trim() || mutation.isPending}
+          >
+            {mutation.isPending ? 'Importing…' : 'Import'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
