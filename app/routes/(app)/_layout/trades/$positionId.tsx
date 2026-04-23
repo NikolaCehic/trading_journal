@@ -295,7 +295,60 @@ function TabContent({ tab, bundle, positionId }: { tab: Tab; bundle: TradeDetail
   )
 }
 
+// ── Notes Tab helpers ─────────────────────────────────────────
+
+function wrapSelection(
+  textarea: HTMLTextAreaElement,
+  before: string,
+  after: string,
+  placeholder = '',
+): { next: string; newStart: number; newEnd: number } {
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const value = textarea.value
+  const selected = value.slice(start, end) || placeholder
+  const next = value.slice(0, start) + before + selected + after + value.slice(end)
+  const newStart = start + before.length
+  const newEnd = newStart + selected.length
+  return { next, newStart, newEnd }
+}
+
+function prefixLines(
+  textarea: HTMLTextAreaElement,
+  prefix: string,
+): { next: string; newStart: number; newEnd: number } {
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const value = textarea.value
+  // Expand selection to full line boundaries
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1
+  const lineEnd = value.indexOf('\n', end) === -1 ? value.length : value.indexOf('\n', end)
+  const block = value.slice(lineStart, lineEnd)
+  const prefixed = block.split('\n').map(line => (line ? prefix + line : prefix.trimEnd())).join('\n')
+  const next = value.slice(0, lineStart) + prefixed + value.slice(lineEnd)
+  return {
+    next,
+    newStart: lineStart,
+    newEnd: lineStart + prefixed.length,
+  }
+}
+
 // ── Notes Tab ────────────────────────────────────────────────
+
+const toolbarBtnBase: React.CSSProperties = {
+  height: 24,
+  minWidth: 28,
+  padding: '0 8px',
+  background: 'transparent',
+  border: '1px solid transparent',
+  borderRadius: 4,
+  color: 'var(--fg-muted)',
+  fontFamily: 'inherit',
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'all 150ms ease-out',
+}
 
 function NotesTab({ note, positionId }: { note: TradeDetailBundle['note']; positionId: string }) {
   const qc = useQueryClient()
@@ -303,6 +356,7 @@ function NotesTab({ note, positionId }: { note: TradeDetailBundle['note']; posit
   const [savedAt, setSavedAt] = useState<Date | null>(note?.updatedAt ? new Date(note.updatedAt) : null)
   const [saving, setSaving] = useState(false)
   const latestSave = useRef<(v: string) => Promise<void>>(() => Promise.resolve())
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const mutation = useMutation({
     mutationFn: (bodyMarkdown: string) => upsertTradeNote({ data: { positionId, bodyMarkdown } }),
@@ -323,14 +377,156 @@ function NotesTab({ note, positionId }: { note: TradeDetailBundle['note']; posit
     return () => clearTimeout(t)
   }, [text])
 
+  function applyWrap(before: string, after: string, placeholder?: string) {
+    const ta = textareaRef.current
+    if (!ta) return
+    const { next, newStart, newEnd } = wrapSelection(ta, before, after, placeholder)
+    setText(next)
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(newStart, newEnd)
+    })
+  }
+
+  function applyLinePrefix(prefix: string) {
+    const ta = textareaRef.current
+    if (!ta) return
+    const { next, newStart, newEnd } = prefixLines(ta, prefix)
+    setText(next)
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(newStart, newEnd)
+    })
+  }
+
+  function applyHr() {
+    const ta = textareaRef.current
+    if (!ta) return
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const value = ta.value
+    const insert = '\n\n---\n\n'
+    const next = value.slice(0, start) + insert + value.slice(end)
+    setText(next)
+    const pos = start + insert.length
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(pos, pos)
+    })
+  }
+
   return (
     <div style={{ padding: '20px 0' }}>
+      {/* Markdown toolbar */}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        padding: '6px 8px',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderBottom: 'none',
+        borderRadius: 'var(--r-default) var(--r-default) 0 0',
+      }}>
+        <button
+          type="button"
+          onClick={() => applyWrap('**', '**', 'bold')}
+          style={{ ...toolbarBtnBase, fontWeight: 700 }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Bold (Cmd+B)"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onClick={() => applyWrap('_', '_', 'italic')}
+          style={{ ...toolbarBtnBase, fontStyle: 'italic' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Italic (Cmd+I)"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          onClick={() => applyLinePrefix('## ')}
+          style={toolbarBtnBase}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Heading 1"
+        >
+          H1
+        </button>
+        <button
+          type="button"
+          onClick={() => applyLinePrefix('### ')}
+          style={toolbarBtnBase}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Heading 2"
+        >
+          H2
+        </button>
+        <button
+          type="button"
+          onClick={() => applyLinePrefix('- ')}
+          style={toolbarBtnBase}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Bullet list"
+        >
+          •
+        </button>
+        <button
+          type="button"
+          onClick={() => applyLinePrefix('1. ')}
+          style={toolbarBtnBase}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Ordered list"
+        >
+          1.
+        </button>
+        <button
+          type="button"
+          onClick={() => applyWrap('`', '`', 'code')}
+          style={{ ...toolbarBtnBase, fontFamily: 'var(--font-mono)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Inline code"
+        >
+          {'<>'}
+        </button>
+        <div style={{ width: 1, background: 'var(--border)', margin: '2px 4px' }} />
+        <button
+          type="button"
+          onClick={() => applyHr()}
+          style={toolbarBtnBase}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--fg)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg-muted)' }}
+          title="Horizontal rule"
+        >
+          —
+        </button>
+      </div>
       <textarea
+        ref={textareaRef}
         className="tj-textarea"
         rows={12}
         placeholder="Write down what you saw, felt, planned."
         value={text}
         onChange={(e) => setText(e.target.value)}
+        style={{ borderRadius: '0 0 var(--r-default) var(--r-default)' }}
+        onKeyDown={(e) => {
+          const mod = e.metaKey || e.ctrlKey
+          if (mod && e.key === 'b') { e.preventDefault(); applyWrap('**', '**', 'bold') }
+          else if (mod && e.key === 'i') { e.preventDefault(); applyWrap('_', '_', 'italic') }
+          else if (mod && e.key === 'k') {
+            e.preventDefault()
+            const url = prompt('Link URL:')
+            if (url) applyWrap('[', `](${url})`, 'link text')
+          }
+        }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--fg-subtle)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
