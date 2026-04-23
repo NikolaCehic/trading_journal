@@ -108,6 +108,22 @@ function DetailSkeleton() {
 }
 
 function DetailError({ error }: { error: unknown }) {
+  const isNotFound = String(error).includes('Not found')
+
+  if (isNotFound) {
+    return (
+      <div className="tj-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+        <div className="tj-card tj-card-pad" style={{ textAlign: 'center', maxWidth: 380 }}>
+          <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>Position not found</div>
+          <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16 }}>This position doesn't exist or was deleted.</div>
+          <Link to="/trades" className="tj-btn tj-btn-primary" style={{ textDecoration: 'none' }}>
+            Back to trades
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="tj-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
       <div className="tj-card tj-card-pad" style={{ textAlign: 'center', maxWidth: 380 }}>

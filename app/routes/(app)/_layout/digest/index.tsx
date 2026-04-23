@@ -26,7 +26,8 @@ function DigestPage() {
 
       {isLoading && <PreviewSkeleton />}
       {error && <PreviewError />}
-      {data && <PreviewBody data={data} />}
+      {data && data.narrative.biggestWin === null && data.narrative.biggestLoss === null && data.narrative.topFinding === null && <PreviewNoData />}
+      {data && (data.narrative.biggestWin !== null || data.narrative.biggestLoss !== null || data.narrative.topFinding !== null) && <PreviewBody data={data} />}
     </div>
   )
 }
@@ -84,6 +85,19 @@ function PreviewError() {
     <div className="tj-card" style={{ padding: 40, textAlign: 'center' }}>
       <div style={{ fontSize: 14, color: 'var(--fg-subtle)' }}>
         Could not generate a digest preview right now.
+      </div>
+    </div>
+  )
+}
+
+function PreviewNoData() {
+  return (
+    <div className="tj-card" style={{ padding: 40, textAlign: 'center' }}>
+      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg)', marginBottom: 8 }}>
+        No closed trades this week yet
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+        Your digest preview will light up once you close positions.
       </div>
     </div>
   )
