@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "disabled_builtin_detectors" text[] DEFAULT '{}' NOT NULL;

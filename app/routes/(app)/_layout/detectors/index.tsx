@@ -2,10 +2,26 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { listCustomDetectors, deleteCustomDetector, toggleCustomDetector } from '~/server/customDetectors'
+import { getBuiltinDetectorSettings, setBuiltinDetectorEnabled } from '~/server/userPrefs'
 import { EmptyState } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 
 export const Route = createFileRoute('/(app)/_layout/detectors/')({ component: DetectorsPage })
+
+const BUILTIN_META: Array<{ id: string; label: string; blurb: string }> = [
+  { id: 'revenge_trading', label: 'Revenge trading', blurb: 'Trades opened <15min after a loss that end in a loss.' },
+  { id: 'oversized_positions', label: 'Oversized positions', blurb: 'Position size grows when P&L is shrinking.' },
+  { id: 'loss_of_discipline_windows', label: 'Discipline windows', blurb: 'Hours where your plan-adherence collapses.' },
+  { id: 'position_sizing_instability', label: 'Sizing instability', blurb: 'Size variance across trades is higher than typical.' },
+  { id: 'cut_winners_ride_losers', label: 'Cut winners, ride losers', blurb: 'Winners closed below median R; losers held past plan.' },
+  { id: 'overtrading_after_losses', label: 'Overtrading after losses', blurb: 'Trade count spikes right after drawdowns.' },
+  { id: 'fee_drag', label: 'Fee drag', blurb: 'Fees exceed a meaningful fraction of realized P&L.' },
+  { id: 'scaling_into_losers', label: 'Scaling into losers', blurb: 'Adds to position past entry, against the initial thesis.' },
+  { id: 'short_hold_scalping', label: 'Short-hold scalping', blurb: 'Clusters of sub-minute trades with fee-eroded edge.' },
+  { id: 'symbol_underperformance', label: 'Symbol underperformance', blurb: 'Specific symbols that consistently cost you money.' },
+  { id: 'leverage_creep', label: 'Leverage creep', blurb: 'Max-notional growing session-over-session.' },
+  { id: 'plan_adherence', label: 'Plan adherence', blurb: 'Oversized / cut-short / stop-breach vs. linked plan.' },
+]
 
 const SEVERITY_COLORS: Record<string, string> = {
   info: 'var(--fg-muted)',
@@ -95,6 +111,32 @@ function DetectorsPage() {
     staleTime: 30_000,
   })
 
+  const { data: builtinSettings } = useQuery({
+    queryKey: ['builtin-detector-settings'],
+    queryFn: () => getBuiltinDetectorSettings(),
+    staleTime: 60_000,
+  })
+  const disabledSet = new Set(builtinSettings?.disabled ?? [])
+
+  const toggleBuiltin = useMutation({
+    mutationFn: (p: { detectorId: string; enabled: boolean }) =>
+      setBuiltinDetectorEnabled({ data: p }),
+    onMutate: async ({ detectorId, enabled }) => {
+      await queryClient.cancelQueries({ queryKey: ['builtin-detector-settings'] })
+      const prev = queryClient.getQueryData<{ disabled: string[] }>(['builtin-detector-settings'])
+      const next = new Set(prev?.disabled ?? [])
+      if (enabled) next.delete(detectorId)
+      else next.add(detectorId)
+      queryClient.setQueryData(['builtin-detector-settings'], { disabled: Array.from(next) })
+      return { prev }
+    },
+    onError: (err, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['builtin-detector-settings'], ctx.prev)
+      toast.error(String(err))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['builtin-detector-settings'] }),
+  })
+
   const rows = data ?? []
   const enabledCount = rows.filter(d => d.enabled).length
 
@@ -142,6 +184,41 @@ function DetectorsPage() {
 
   return (
     <div className="tj-main">
+      <div className="tj-card">
+        <div className="tj-card-head">
+          <div className="tj-card-title">Built-in detectors</div>
+          <div className="tj-card-sub">{12 - disabledSet.size} of 12 enabled</div>
+        </div>
+        <div style={{ padding: 4 }}>
+          {BUILTIN_META.map((m) => {
+            const enabled = !disabledSet.has(m.id)
+            return (
+              <div
+                key={m.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderTop: '1px solid var(--border)',
+                  opacity: enabled ? 1 : 0.55,
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{m.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 3, lineHeight: 1.5 }}>{m.blurb}</div>
+                </div>
+                <ToggleSwitch
+                  checked={enabled}
+                  onChange={(v) => toggleBuiltin.mutate({ detectorId: m.id, enabled: v })}
+                  disabled={toggleBuiltin.isPending}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>

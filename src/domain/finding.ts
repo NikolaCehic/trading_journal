@@ -16,6 +16,21 @@ export type BuiltinDetectorId =
   | 'leverage_creep'
   | 'plan_adherence'
 
+export const BUILTIN_DETECTOR_IDS = [
+  'revenge_trading',
+  'oversized_positions',
+  'loss_of_discipline_windows',
+  'position_sizing_instability',
+  'cut_winners_ride_losers',
+  'overtrading_after_losses',
+  'fee_drag',
+  'scaling_into_losers',
+  'short_hold_scalping',
+  'symbol_underperformance',
+  'leverage_creep',
+  'plan_adherence',
+] as const satisfies readonly BuiltinDetectorId[]
+
 export type CustomDetectorId = `custom:${string}`
 
 export type DetectorId = BuiltinDetectorId | CustomDetectorId

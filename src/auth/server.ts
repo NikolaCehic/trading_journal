@@ -39,6 +39,12 @@ export const auth = betterAuth({
         defaultValue: true,
         input: false,
       },
+      disabledBuiltinDetectors: {
+        type: 'string[]',
+        required: true,
+        defaultValue: [],
+        input: false,
+      },
     },
   },
   databaseHooks: {

@@ -120,12 +120,14 @@ function buildMockDb(
     from: (table: object) => {
       capturedFromTable = table
       const fn = tableMap.get(table) ?? (() => Promise.resolve([]))
+      const makeTerminal = (dataFn: SelectReturnFn) => ({
+        then: (onfulfilled: (v: unknown[]) => unknown) =>
+          Promise.resolve(dataFn()).then(onfulfilled),
+        limit: () => makeTerminal(dataFn),
+      })
       return {
-        where: () => ({
-          then: (onfulfilled: (v: unknown[]) => unknown) =>
-            Promise.resolve(fn()).then(onfulfilled),
-        }),
-        // handle db.select({...}).from(t).where(...)
+        where: () => makeTerminal(fn),
+        // handle db.select({...}).from(t) direct await
         then: (onfulfilled: (v: unknown[]) => unknown) =>
           Promise.resolve(fn()).then(onfulfilled),
       }
@@ -159,6 +161,7 @@ import { fill as fillTable } from '~/db/schema/canonical'
 import { position as positionTable } from '~/db/schema/derivation'
 import { tradePlan, positionTag, setupTag, mistakeTag } from '~/db/schema/journal'
 import { userDetector } from '~/db/schema/customDetectors'
+import { user as userTable } from '~/db/schema/auth'
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal userDetector row
@@ -188,7 +191,7 @@ function makeUserDet(overrides: {
 // Shared mock DB builder for runner tests
 // ---------------------------------------------------------------------------
 
-function buildRunnerDb(userDets: ReturnType<typeof makeUserDet>[], posTagRows: object[] = [], setupTagRows: object[] = [], mistakeTagRows: object[] = []) {
+function buildRunnerDb(userDets: ReturnType<typeof makeUserDet>[], posTagRows: object[] = [], setupTagRows: object[] = [], mistakeTagRows: object[] = [], disabledBuiltinDetectors: string[] = []) {
   const tableMap = new Map<object, SelectReturnFn>([
     [fillTable, () => Promise.resolve([FILL_OPEN, FILL_CLOSE, FILL_LOSER_OPEN, FILL_LOSER_CLOSE])],
     [positionTable, () => Promise.resolve([])],  // no existing plan links
@@ -197,6 +200,7 @@ function buildRunnerDb(userDets: ReturnType<typeof makeUserDet>[], posTagRows: o
     [positionTag, () => Promise.resolve(posTagRows)],
     [setupTag, () => Promise.resolve(setupTagRows)],
     [mistakeTag, () => Promise.resolve(mistakeTagRows)],
+    [userTable, () => Promise.resolve([{ disabled: disabledBuiltinDetectors }])],
   ])
   return buildMockDb(tableMap)
 }
@@ -289,6 +293,7 @@ describe('runDerivation — custom detector wiring', () => {
       [positionTag, () => Promise.resolve([])],
       [setupTag, () => Promise.resolve([])],
       [mistakeTag, () => Promise.resolve([])],
+      [userTable, () => Promise.resolve([{ disabled: [] }])],
     ])
 
     const insertChain = {
@@ -303,11 +308,14 @@ describe('runDerivation — custom detector wiring', () => {
     const deleteChain = { where: () => Promise.resolve([]) }
     const updateChain = { set: () => ({ where: () => Promise.resolve([]) }) }
 
+    const makeTerminal2 = (tableFn: SelectReturnFn) => ({
+      then: (onfulfilled: (v: unknown[]) => unknown) =>
+        Promise.resolve(tableFn()).then(onfulfilled),
+      limit: () => makeTerminal2(tableFn),
+    })
+
     const selectChain = (tableFn: SelectReturnFn) => ({
-      where: () => ({
-        then: (onfulfilled: (v: unknown[]) => unknown) =>
-          Promise.resolve(tableFn()).then(onfulfilled),
-      }),
+      where: () => makeTerminal2(tableFn),
       then: (onfulfilled: (v: unknown[]) => unknown) =>
         Promise.resolve(tableFn()).then(onfulfilled),
     })

@@ -4,6 +4,7 @@ import { fill as fillTable } from '~/db/schema/canonical'
 import { position as positionTable } from '~/db/schema/derivation'
 import { tradePlan, positionTag, setupTag, mistakeTag } from '~/db/schema/journal'
 import { userDetector } from '~/db/schema/customDetectors'
+import { user } from '~/db/schema/auth'
 import { mergeFillsIntoPositions } from './merge'
 import { computeDailyMetrics } from './metrics/daily'
 import { computeAssetMetrics } from './metrics/asset'
@@ -72,8 +73,14 @@ export async function runDerivation(args: RunDerivationArgs) {
   const session = computeSessionMetrics(positions)
   const dowMetrics = computeDayOfWeekMetrics(positions)
   const summary = computeSummaryRollup(positions, daily)
+  const userRow = await db.select({ disabled: user.disabledBuiltinDetectors })
+    .from(user).where(eq(user.id, userId)).limit(1)
+  const disabledSet = new Set(userRow[0]?.disabled ?? [])
+  const activeDetectors = DETECTORS.filter(d => !disabledSet.has(d.id))
+  log.info('derivation: running detectors', { userId, active: activeDetectors.length, disabled: Array.from(disabledSet) })
+
   const ctx: DerivationContext = { userId, derivationVersion: version, now, fills, positions, planMap, daily, asset, session, summary }
-  const builtInFindings: Finding[] = DETECTORS.flatMap(d => {
+  const builtInFindings: Finding[] = activeDetectors.flatMap(d => {
     try { return d.run(ctx) }
     catch (err) { log.error('detector threw', { id: d.id, err: String(err) }); return [] }
   })

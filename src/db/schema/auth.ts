@@ -9,6 +9,7 @@ export const user = pgTable('user', {
   isDemo: boolean('is_demo').notNull().default(false),
   timezone: text('timezone').notNull().default('UTC'),
   digestEnabled: boolean('digest_enabled').notNull().default(true),
+  disabledBuiltinDetectors: text('disabled_builtin_detectors').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
