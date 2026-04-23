@@ -1,62 +1,115 @@
-import type { DashboardBundle } from '~/domain/dashboard'
-import { Badge } from '~/components/ui/badge'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Card, FindingCard, SeverityDot } from '~/components/tj/primitives'
+import { findings } from './mockData'
+import { adoptRule, archiveRule, getRuleViolationsThisWeek } from '~/server/rules'
 
-const DETECTOR_LABELS: Record<string, string> = {
-  revenge_trading: 'Revenge trading',
-  oversized_positions: 'Oversized positions',
-  loss_of_discipline_windows: 'Discipline windows',
-  position_sizing_instability: 'Sizing instability',
-  cut_winners_ride_losers: 'Cut winners, ride losers',
-  overtrading_after_losses: 'Overtrading after losses',
-  fee_drag: 'Fee drag',
-  scaling_into_losers: 'Scaling into losers',
-  short_hold_scalping: 'Short-hold scalping',
-  symbol_underperformance: 'Symbol underperformance',
-  leverage_creep: 'Leverage creep',
-}
+const RULE_TEXT = "After any loss >1%, don't open a position for 30 minutes."
 
-export function FindingsSidebar({ bundle }: { bundle: DashboardBundle }) {
-  const findings = bundle.topFindings
+export function FindingsSidebar() {
+  const [adoptedRuleId, setAdoptedRuleId] = useState<string | null>(null)
+
+  const adopt = useMutation({
+    mutationFn: () =>
+      adoptRule({ data: { detectorId: 'revenge_trading', ruleText: RULE_TEXT } }),
+    onSuccess: (res) => setAdoptedRuleId(res.ruleId),
+  })
+
+  const archive = useMutation({
+    mutationFn: (ruleId: string) => archiveRule({ data: { ruleId } }),
+    onSuccess: () => setAdoptedRuleId(null),
+  })
+
+  const violationsQuery = useQuery({
+    queryKey: ['rule-violations', adoptedRuleId],
+    queryFn: () => getRuleViolationsThisWeek({ data: { ruleId: adoptedRuleId! } }),
+    enabled: !!adoptedRuleId,
+    refetchInterval: 60_000,
+  })
+
+  const violations = violationsQuery.data?.violations ?? null
+
+  const top = findings[0]!
+  const rest = findings.slice(1)
+
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h3 className="text-sm font-medium mb-3">Active findings</h3>
-      {findings.length === 0 ? (
-        <p className="text-sm text-neutral-500">No active findings. Keep trading — patterns emerge over time.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {findings.map(f => (
-            <li key={f.id} className="border-b border-neutral-800 last:border-b-0 pb-3 last:pb-0">
-              <div className="flex items-start gap-2">
-                <SeverityDot severity={f.severity} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-neutral-300">
-                      {DETECTOR_LABELS[f.detectorId] ?? f.detectorId}
-                    </span>
-                    <Badge variant="outline" className="text-[10px]">{f.severity}</Badge>
-                  </div>
-                  <p className="text-xs text-neutral-400 mt-1 line-clamp-3">{f.bodyMarkdown}</p>
-                  {f.referencedPositionIds.length > 0 && (
-                    <a
-                      href={`/trades/${f.referencedPositionIds[0]}`}
-                      className="text-xs text-brand hover:underline mt-1 inline-block"
-                    >
-                      Open related trade →
-                    </a>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+    <Card title="Findings" subtitle={`${findings.length} active`} style={{ overflow: 'hidden' }}>
+      <div>
+        {/* Top finding — rule opt-in card */}
+        <div
+          style={{
+            padding: '12px 14px',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <SeverityDot level={top.level} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>{top.title}</div>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--fg-subtle)', lineHeight: 1.5, marginLeft: 14 }}>
+            {top.evidence}
+          </div>
 
-function SeverityDot({ severity }: { severity: string }) {
-  const cls =
-    severity === 'critical' ? 'bg-pnl-loss' :
-    severity === 'warning' ? 'bg-brand' : 'bg-neutral-500'
-  return <span className={`mt-1 h-2 w-2 rounded-full ${cls} shrink-0`} aria-label={severity} />
+          {!adoptedRuleId ? (
+            <div style={{ marginLeft: 14, marginTop: 8 }}>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  color: 'var(--fg-subtle)',
+                  marginBottom: 6,
+                }}
+              >
+                Suggested rule: {RULE_TEXT}
+              </div>
+              <button
+                type="button"
+                className="tj-btn tj-btn-sm"
+                disabled={adopt.isPending}
+                onClick={() => adopt.mutate()}
+              >
+                {adopt.isPending ? 'Saving…' : 'Adopt this rule'}
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginLeft: 14,
+                marginTop: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span className="tj-chip tj-chip-accent">
+                Rule active &middot; {violations !== null ? violations : '—'} violation
+                {violations === 1 ? '' : 's'} this week
+              </span>
+              <button
+                type="button"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 11,
+                  color: 'var(--fg-subtle)',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+                disabled={archive.isPending}
+                onClick={() => archive.mutate(adoptedRuleId)}
+              >
+                Archive
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Remaining findings */}
+        {rest.map((f, i) => (
+          <FindingCard key={i + 1} level={f.level} title={f.title} evidence={f.evidence} />
+        ))}
+      </div>
+    </Card>
+  )
 }
