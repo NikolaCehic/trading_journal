@@ -55,6 +55,7 @@ export const tradeCoachNote = pgTable('trade_coach_note', {
   positionId: text('position_id').notNull().references(() => position.id, { onDelete: 'cascade' }),
   derivationVersion: integer('derivation_version').notNull(),
   narrativeMarkdown: text('narrative_markdown').notNull(),
+  referencedPositionIds: text('referenced_position_ids').array().notNull().default([]),
   tokensIn: integer('tokens_in'),
   tokensOut: integer('tokens_out'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -15,6 +15,7 @@ const coachInput = z.object({ positionId: z.string().min(1) })
 export type TradeCoachResult = {
   gradeLetter: 'A' | 'B' | 'C' | 'D' | 'F'
   narrativeMarkdown: string
+  referencedPositionIds: string[]
   failed: boolean
   cachedAt: string // ISO
 }
@@ -52,6 +53,7 @@ export const getTradeCoach = createServerFn({ method: 'POST' })
       return {
         gradeLetter: grade,
         narrativeMarkdown: stripGradeLine(cached.narrativeMarkdown),
+        referencedPositionIds: cached.referencedPositionIds ?? [],
         failed: false,
         cachedAt: cached.createdAt.toISOString(),
       } satisfies TradeCoachResult
@@ -71,6 +73,7 @@ export const getTradeCoach = createServerFn({ method: 'POST' })
         positionId: data.positionId,
         derivationVersion: DERIVATION_VERSION,
         narrativeMarkdown: markdown,
+        referencedPositionIds: result.narrative.referencedPositionIds,
         tokensIn: result.tokensIn,
         tokensOut: result.tokensOut,
       })
@@ -81,6 +84,7 @@ export const getTradeCoach = createServerFn({ method: 'POST' })
     return {
       gradeLetter: result.narrative.gradeLetter,
       narrativeMarkdown: result.narrative.prose,
+      referencedPositionIds: result.narrative.referencedPositionIds,
       failed: result.failed,
       cachedAt: new Date().toISOString(),
     } satisfies TradeCoachResult

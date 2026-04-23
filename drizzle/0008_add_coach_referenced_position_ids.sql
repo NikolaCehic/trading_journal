@@ -1,0 +1,1 @@
+ALTER TABLE "trade_coach_note" ADD COLUMN "referenced_position_ids" text[] DEFAULT '{}' NOT NULL;

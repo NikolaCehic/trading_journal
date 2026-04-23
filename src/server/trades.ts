@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { and, desc, eq, gte, inArray, lte, ilike, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte, ilike, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
 import { db } from '~/db/client'
@@ -217,4 +217,54 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
         mistake: mistakes.filter(m => !m.isArchived).map(m => ({ id: m.id, label: m.label, color: m.color })),
       },
     }
+  })
+
+// ---------------------------------------------------------------------------
+// getPositionsByIds — fetch lightweight position refs (coach cross-links)
+// ---------------------------------------------------------------------------
+
+export type PositionRef = {
+  id: string
+  symbol: string
+  side: 'long' | 'short'
+  instrumentType: 'spot' | 'perp'
+  openedAt: Date
+  realizedPnl: number
+}
+
+const positionsByIdsInput = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(10),
+})
+
+export const getPositionsByIds = createServerFn({ method: 'POST' })
+  .inputValidator((d: unknown) => positionsByIdsInput.parse(d))
+  .handler(async ({ data }): Promise<PositionRef[]> => {
+    const session = await auth.api.getSession({ headers: getRequest().headers })
+    if (!session?.user) throw new Error('Unauthorized')
+    const userId = session.user.id
+
+    const rows = await db
+      .select({
+        id: position.id,
+        symbol: position.symbol,
+        side: position.side,
+        instrumentType: position.instrumentType,
+        openedAt: position.openedAt,
+        realizedPnl: position.realizedPnl,
+      })
+      .from(position)
+      .where(and(
+        eq(position.userId, userId),
+        inArray(position.id, data.ids),
+        eq(position.derivationVersion, DERIVATION_VERSION),
+      ))
+
+    return rows.map(r => ({
+      id: r.id,
+      symbol: r.symbol,
+      side: r.side,
+      instrumentType: r.instrumentType,
+      openedAt: r.openedAt,
+      realizedPnl: Number(r.realizedPnl),
+    }))
   })

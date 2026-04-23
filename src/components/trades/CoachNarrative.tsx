@@ -1,10 +1,23 @@
 import ReactMarkdown from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
+import { Link } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import type { TradeCoachResult } from '~/server/coach'
+import { getPositionsByIds, type PositionRef } from '~/server/trades'
+import { fmtUSD } from '~/components/tj/primitives'
 
 export function CoachNarrative({ result }: { result: TradeCoachResult }) {
   const gradeColor = gradeTone(result.gradeLetter)
+  const refIds = result.referencedPositionIds ?? []
+
+  const { data: refs = [] } = useQuery({
+    queryKey: ['positionsByIds', refIds.slice().sort().join(',')],
+    queryFn: () => getPositionsByIds({ data: { ids: refIds } }),
+    enabled: refIds.length > 0,
+    staleTime: 5 * 60_000,
+  })
+
   return (
     <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -56,6 +69,28 @@ export function CoachNarrative({ result }: { result: TradeCoachResult }) {
           {result.narrativeMarkdown}
         </ReactMarkdown>
       </div>
+      {refs.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 10, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 6, alignSelf: 'center' }}>
+            Referenced
+          </span>
+          {refs.map((p: PositionRef) => (
+            <Link
+              key={p.id}
+              to="/trades/$positionId"
+              params={{ positionId: p.id }}
+              className="tj-chip"
+              style={{ cursor: 'pointer', textDecoration: 'none' }}
+            >
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{p.symbol}</span>
+              <span className={`tj-side tj-side-${p.side}`}>{p.side}</span>
+              <span style={{ color: p.realizedPnl >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+                {fmtUSD(p.realizedPnl, { showPlus: true })}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
