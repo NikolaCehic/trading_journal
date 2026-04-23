@@ -42,6 +42,7 @@ export type DigestFactBundle = {
 }
 
 export type CoachFactBundle = {
+  userId: string
   position: {
     id: string
     symbol: string

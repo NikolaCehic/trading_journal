@@ -141,6 +141,7 @@ export async function buildCoachFacts(
   const allowedFindingIds = posFindings.map(f => f.id)
 
   return {
+    userId,
     position: {
       id: pos.id,
       symbol: pos.symbol,

@@ -52,6 +52,7 @@ const COACH_POS_ID = 'cpos-aaaa-bbbb-cccc-dddd'
 const COACH_FIND_ID = 'cfind-1111-2222-3333-4444'
 
 const coachFacts: CoachFactBundle = {
+  userId: 'user_1',
   position: {
     id: COACH_POS_ID,
     symbol: 'ETH',

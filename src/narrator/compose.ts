@@ -5,7 +5,9 @@ import { buildCoachPrompt } from '~/narrator/prompts/coach'
 import { validateDigestNarrative, validateCoachNarrative } from '~/narrator/validate'
 import { callLlm } from './client'
 import { digestFallback, coachFallback } from './fallback'
+import { getNarratorBudgetStatus } from './budget'
 import { env } from '~/lib/env'
+import { log } from '~/lib/log'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -46,8 +48,11 @@ function extractJson(content: string): unknown {
 export async function composeDigest(
   facts: DigestFactBundle,
 ): Promise<ComposeResult<DigestNarrative>> {
+  const startedAt = Date.now()
+  const userId = facts.user.id
+
   if (env.AI_ENABLED === 'off') {
-    return {
+    const result: ComposeResult<DigestNarrative> = {
       narrative: digestFallback(facts),
       tokensIn: 0,
       tokensOut: 0,
@@ -55,6 +60,47 @@ export async function composeDigest(
       failed: true,
       error: 'ai_disabled',
     }
+    log.info('narrator: compose', {
+      fn: 'digest',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
+  }
+
+  // Budget guard — fall back to deterministic template if over cap
+  try {
+    const budget = await getNarratorBudgetStatus(userId)
+    if (budget.overBudget) {
+      log.warn('narrator: over-budget, using fallback', { userId, spentUsd: budget.spentUsd })
+      const result: ComposeResult<DigestNarrative> = {
+        narrative: digestFallback(facts),
+        tokensIn: 0,
+        tokensOut: 0,
+        retried: false,
+        failed: true,
+        error: 'over_budget',
+      }
+      log.info('narrator: compose', {
+        fn: 'digest',
+        userId,
+        tokensIn: result.tokensIn,
+        tokensOut: result.tokensOut,
+        validated: !result.failed,
+        retried: result.retried,
+        failed: result.failed,
+        latencyMs: Date.now() - startedAt,
+      })
+      return result
+    }
+  } catch (err) {
+    // Budget query failed — don't block the compose; log and proceed
+    log.warn('narrator: budget check failed', { error: String(err) })
   }
 
   const prompt = buildDigestPrompt(facts)
@@ -70,13 +116,24 @@ export async function composeDigest(
   const firstResult = validateDigestNarrative(firstParsed, facts)
 
   if (firstResult.ok) {
-    return {
+    const result: ComposeResult<DigestNarrative> = {
       narrative: firstResult.value,
       tokensIn,
       tokensOut,
       retried: false,
       failed: false,
     }
+    log.info('narrator: compose', {
+      fn: 'digest',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
   }
 
   // Retry with stricter prompt
@@ -98,16 +155,27 @@ export async function composeDigest(
   const secondResult = validateDigestNarrative(secondParsed, facts)
 
   if (secondResult.ok) {
-    return {
+    const result: ComposeResult<DigestNarrative> = {
       narrative: secondResult.value,
       tokensIn,
       tokensOut,
       retried: true,
       failed: false,
     }
+    log.info('narrator: compose', {
+      fn: 'digest',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
   }
 
-  return {
+  const result: ComposeResult<DigestNarrative> = {
     narrative: digestFallback(facts),
     tokensIn,
     tokensOut,
@@ -115,6 +183,17 @@ export async function composeDigest(
     failed: true,
     error: secondResult.error,
   }
+  log.info('narrator: compose', {
+    fn: 'digest',
+    userId,
+    tokensIn: result.tokensIn,
+    tokensOut: result.tokensOut,
+    validated: !result.failed,
+    retried: result.retried,
+    failed: result.failed,
+    latencyMs: Date.now() - startedAt,
+  })
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +203,11 @@ export async function composeDigest(
 export async function composeCoach(
   facts: CoachFactBundle,
 ): Promise<ComposeResult<CoachNarrative>> {
+  const startedAt = Date.now()
+  const userId = facts.userId
+
   if (env.AI_ENABLED === 'off') {
-    return {
+    const result: ComposeResult<CoachNarrative> = {
       narrative: coachFallback(facts),
       tokensIn: 0,
       tokensOut: 0,
@@ -133,6 +215,47 @@ export async function composeCoach(
       failed: true,
       error: 'ai_disabled',
     }
+    log.info('narrator: compose', {
+      fn: 'coach',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
+  }
+
+  // Budget guard — fall back to deterministic template if over cap
+  try {
+    const budget = await getNarratorBudgetStatus(userId)
+    if (budget.overBudget) {
+      log.warn('narrator: over-budget, using fallback', { userId, spentUsd: budget.spentUsd })
+      const result: ComposeResult<CoachNarrative> = {
+        narrative: coachFallback(facts),
+        tokensIn: 0,
+        tokensOut: 0,
+        retried: false,
+        failed: true,
+        error: 'over_budget',
+      }
+      log.info('narrator: compose', {
+        fn: 'coach',
+        userId,
+        tokensIn: result.tokensIn,
+        tokensOut: result.tokensOut,
+        validated: !result.failed,
+        retried: result.retried,
+        failed: result.failed,
+        latencyMs: Date.now() - startedAt,
+      })
+      return result
+    }
+  } catch (err) {
+    // Budget query failed — don't block the compose; log and proceed
+    log.warn('narrator: budget check failed', { error: String(err) })
   }
 
   const prompt = buildCoachPrompt(facts)
@@ -148,13 +271,24 @@ export async function composeCoach(
   const firstResult = validateCoachNarrative(firstParsed, facts)
 
   if (firstResult.ok) {
-    return {
+    const result: ComposeResult<CoachNarrative> = {
       narrative: firstResult.value,
       tokensIn,
       tokensOut,
       retried: false,
       failed: false,
     }
+    log.info('narrator: compose', {
+      fn: 'coach',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
   }
 
   // Retry with stricter prompt
@@ -176,16 +310,27 @@ export async function composeCoach(
   const secondResult = validateCoachNarrative(secondParsed, facts)
 
   if (secondResult.ok) {
-    return {
+    const result: ComposeResult<CoachNarrative> = {
       narrative: secondResult.value,
       tokensIn,
       tokensOut,
       retried: true,
       failed: false,
     }
+    log.info('narrator: compose', {
+      fn: 'coach',
+      userId,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      validated: !result.failed,
+      retried: result.retried,
+      failed: result.failed,
+      latencyMs: Date.now() - startedAt,
+    })
+    return result
   }
 
-  return {
+  const result: ComposeResult<CoachNarrative> = {
     narrative: coachFallback(facts),
     tokensIn,
     tokensOut,
@@ -193,4 +338,15 @@ export async function composeCoach(
     failed: true,
     error: secondResult.error,
   }
+  log.info('narrator: compose', {
+    fn: 'coach',
+    userId,
+    tokensIn: result.tokensIn,
+    tokensOut: result.tokensOut,
+    validated: !result.failed,
+    retried: result.retried,
+    failed: result.failed,
+    latencyMs: Date.now() - startedAt,
+  })
+  return result
 }
