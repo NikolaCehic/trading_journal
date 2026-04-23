@@ -69,3 +69,33 @@ function autoInterval(durationMs: number): CandleInterval {
   if (durationMs < 7 * 86_400_000) return '1h'
   return '4h'
 }
+
+export const getBtcEquityContext = createServerFn({ method: 'POST' })
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        from: z.string().datetime(),
+        to: z.string().datetime(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }): Promise<Array<{ date: string; priceUsd: number }>> => {
+    const session = await auth.api.getSession({ headers: getRequest().headers })
+    if (!session?.user) throw new Error('Unauthorized')
+
+    const fromDate = new Date(data.from)
+    const toDate = new Date(data.to)
+
+    const candles = await getCandles(db, {
+      exchange: 'binance',
+      symbol: 'BTCUSDT',
+      interval: '1d',
+      from: fromDate,
+      to: toDate,
+    })
+
+    return candles.map((c) => ({
+      date: c.openTime.toISOString().slice(0, 10),
+      priceUsd: c.close,
+    }))
+  })

@@ -3,13 +3,15 @@ import { generateEquityCurve } from './mockData'
 import { fmtUSD } from '~/components/tj/primitives'
 
 type RealPoint = { date: string; cumulativePnl: number }
+type BtcPoint = { date: string; priceUsd: number }
 
 type Props = {
   points?: RealPoint[]
+  btcContext?: BtcPoint[]
   height?: number
 }
 
-export function EquityCurve({ points: pointsProp, height = 220 }: Props) {
+export function EquityCurve({ points: pointsProp, btcContext, height = 220 }: Props) {
   const [hover, setHover] = useState<{ idx: number } | null>(null)
 
   // ── Legacy mock mode (landing page, no props) ───────────────
@@ -78,6 +80,16 @@ export function EquityCurve({ points: pointsProp, height = 220 }: Props) {
 
   const hoverPoint = hover !== null ? points[hover.idx] : null
 
+  // ── BTC overlay helpers ─────────────────────────────────────
+  const hasBtc = !!btcContext && btcContext.length > 1
+  const btcHoverPrice = useMemo(() => {
+    if (!hasBtc || hover === null || !btcContext) return null
+    const hoverDate = points[hover.idx]?.date
+    if (!hoverDate) return null
+    const match = btcContext.find((b) => b.date === hoverDate)
+    return match?.priceUsd ?? null
+  }, [hasBtc, hover, btcContext, points])
+
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <svg
@@ -102,6 +114,34 @@ export function EquityCurve({ points: pointsProp, height = 220 }: Props) {
         />
         <path d={areaD} fill={fillColor} />
         <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="1.5" />
+        {/* BTC overlay — dashed, independently scaled, secondary context */}
+        {hasBtc && btcContext && (() => {
+          const btcMin = Math.min(...btcContext.map((p) => p.priceUsd))
+          const btcMax = Math.max(...btcContext.map((p) => p.priceUsd))
+          const btcRange = btcMax - btcMin || 1
+          const btcSy = (v: number) => pad + (1 - (v - btcMin) / btcRange) * (h - pad * 2)
+          const btcD = btcContext
+            .map((p, i) => {
+              const x = pad + (i / (btcContext.length - 1)) * (w - pad * 2)
+              return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${btcSy(p.priceUsd).toFixed(1)}`
+            })
+            .join(' ')
+          return (
+            <>
+              <path d={btcD} fill="none" stroke="var(--fg-faint)" strokeWidth="1" strokeDasharray="4 4" />
+              <text
+                x={w - pad - 4}
+                y={pad + 12}
+                fill="var(--fg-subtle)"
+                fontSize="10"
+                fontFamily="var(--font-mono)"
+                textAnchor="end"
+              >
+                BTC
+              </text>
+            </>
+          )
+        })()}
         {hover && hoverPoint && (
           <>
             <line
@@ -148,6 +188,11 @@ export function EquityCurve({ points: pointsProp, height = 220 }: Props) {
           >
             {fmtUSD(hoverPoint.cumulativePnl, { showPlus: true })}
           </div>
+          {btcHoverPrice !== null && (
+            <div style={{ color: 'var(--fg-subtle)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+              BTC {fmtUSD(btcHoverPrice)}
+            </div>
+          )}
         </div>
       )}
     </div>

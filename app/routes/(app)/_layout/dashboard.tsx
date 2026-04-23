@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { KpiTile, Segmented, Card, fmtUSD, EmptyState } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 import { EquityCurve } from '~/components/dashboard/EquityCurve'
@@ -7,6 +8,7 @@ import { AssetBreakdown } from '~/components/dashboard/AssetBreakdown'
 import { FindingsSidebar } from '~/components/dashboard/FindingsSidebar'
 import { Heatmap } from '~/components/dashboard/Heatmap'
 import { getDashboardBundle } from '~/server/dashboard'
+import { getBtcEquityContext } from '~/server/market'
 import { useDashboardFilters } from '~/hooks/useDashboardFilters'
 import { serializeFilters } from '~/lib/filters'
 import { toCsv, downloadFile } from '~/lib/csv'
@@ -47,6 +49,23 @@ function DashboardPage() {
     queryKey: ['dashboard', filters],
     queryFn: () => getDashboardBundle({ data: serializeFilters(filters) }),
     staleTime: 30_000,
+  })
+
+  const btcFrom = useMemo(() => {
+    if (!bundle?.equityCurve?.length) return null
+    return new Date(bundle.equityCurve[0]!.date).toISOString()
+  }, [bundle?.equityCurve])
+
+  const btcTo = useMemo(() => {
+    if (!bundle?.equityCurve?.length) return null
+    return new Date(bundle.equityCurve[bundle.equityCurve.length - 1]!.date).toISOString()
+  }, [bundle?.equityCurve])
+
+  const { data: btcContext } = useQuery({
+    queryKey: ['btc-context', btcFrom, btcTo],
+    queryFn: () => getBtcEquityContext({ data: { from: btcFrom!, to: btcTo! } }),
+    enabled: !!btcFrom && !!btcTo,
+    staleTime: 10 * 60_000,
   })
 
   function exportDashboard() {
@@ -224,12 +243,23 @@ function DashboardPage() {
                   >
                     {fmtUSD(netPnl, { showPlus: true })}
                   </span>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--fg-subtle)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 12, height: 2, background: 'var(--pnl-up)', display: 'inline-block' }} /> Your P&amp;L
+                    </span>
+                    {btcContext && btcContext.length > 1 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 12, height: 0, borderTop: '1px dashed var(--fg-faint)', display: 'inline-block' }} /> BTC
+                      </span>
+                    )}
+                  </div>
                 </div>
               </>
             }
           >
             <div style={{ padding: '8px 20px 16px' }}>
-              <EquityCurve points={bundle.equityCurve} height={220} />
+              <EquityCurve points={bundle.equityCurve} btcContext={btcContext} height={220} />
             </div>
           </Card>
 
