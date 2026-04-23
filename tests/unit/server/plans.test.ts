@@ -431,3 +431,100 @@ describe('unlinkPositionFromPlan handler', () => {
     ).rejects.toThrow(DemoReadonlyError)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Snapshot tests (Phase 10 Task 1)
+// ---------------------------------------------------------------------------
+
+// A variant of makeRichDb that captures the last update().set() payload
+function makeCapturingDb(selectSequences: unknown[][]) {
+  let lastUpdatePatch: unknown = null
+  let seqIdx = 0
+
+  const consumeNext = () => selectSequences[seqIdx++] ?? []
+
+  const db = {
+    select: (_fields?: unknown) => {
+      // Capture result at select() time — same pattern as makeRichDb
+      const result = consumeNext()
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function makeChain(): Record<string, unknown> & Promise<any> {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p = Promise.resolve(result as unknown[]) as any
+        p.from = (_t: unknown) => makeChain()
+        p.where = (_c?: unknown) => makeChain()
+        p.orderBy = (_col: unknown) => Promise.resolve(result as unknown[])
+        p.limit = (_n: number) => Promise.resolve(result as unknown[])
+        return p
+      }
+
+      return makeChain()
+    },
+    insert: (_table: unknown) => ({
+      values: (_vals: unknown) => Promise.resolve(),
+    }),
+    update: (_table: unknown) => ({
+      set: (patch: unknown) => {
+        lastUpdatePatch = patch
+        return {
+          where: (_cond: unknown) => Promise.resolve(),
+        }
+      },
+    }),
+    getLastUpdatePatch: () => lastUpdatePatch,
+  }
+  return db
+}
+
+describe('linkPositionToPlan snapshot tests', () => {
+  it('copies all plan fields into snapshot columns on link', async () => {
+    normalSession()
+
+    const capDb = makeCapturingDb([
+      [{ id: 'pos_001' }], // position ownership check
+      [samplePlanRow],     // full plan fetch (SELECT *)
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dbRef = capDb as any
+
+    const { linkPositionToPlan } = await import('~/server/plans')
+    const result = await (linkPositionToPlan as unknown as (d: unknown) => Promise<{ ok: boolean }>)({
+      positionId: 'pos_001',
+      planId: 'plan_abc',
+    })
+
+    expect(result.ok).toBe(true)
+
+    const patch = capDb.getLastUpdatePatch() as Record<string, unknown>
+    expect(patch.planId).toBe('plan_abc')
+    expect(patch.planSnapshotEntryPrice).toBe('40000')
+    expect(patch.planSnapshotStopPrice).toBe('38000')
+    expect(patch.planSnapshotTargetPrice).toBe('44000')
+    expect(patch.planSnapshotSize).toBe('0.1')
+    expect(patch.planSnapshotRationale).toBe('Test plan')
+  })
+
+  it('clears planId AND all snapshot columns on unlink', async () => {
+    normalSession()
+
+    const capDb = makeCapturingDb([])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dbRef = capDb as any
+
+    const { unlinkPositionFromPlan } = await import('~/server/plans')
+    const result = await (unlinkPositionFromPlan as unknown as (d: unknown) => Promise<{ ok: boolean }>)({
+      positionId: 'pos_001',
+    })
+
+    expect(result.ok).toBe(true)
+
+    const patch = capDb.getLastUpdatePatch() as Record<string, unknown>
+    expect(patch.planId).toBeNull()
+    expect(patch.planSnapshotEntryPrice).toBeNull()
+    expect(patch.planSnapshotStopPrice).toBeNull()
+    expect(patch.planSnapshotTargetPrice).toBeNull()
+    expect(patch.planSnapshotSize).toBeNull()
+    expect(patch.planSnapshotRationale).toBeNull()
+  })
+})

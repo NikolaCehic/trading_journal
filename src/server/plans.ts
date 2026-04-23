@@ -215,22 +215,31 @@ export const linkPositionToPlan = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data }) => {
     const userId = await requireUserMutation()
-    // Verify both belong to user
+    // Verify position belongs to user
     const [pos] = await db
       .select({ id: position.id })
       .from(position)
       .where(and(eq(position.id, data.positionId), eq(position.userId, userId)))
       .limit(1)
     if (!pos) throw new Error('Position not found')
+    // Fetch full plan row (need snapshot values)
     const [plan] = await db
-      .select({ id: tradePlan.id })
+      .select()
       .from(tradePlan)
       .where(and(eq(tradePlan.id, data.planId), eq(tradePlan.userId, userId)))
       .limit(1)
     if (!plan) throw new Error('Plan not found')
+    // Write planId + snapshot in one UPDATE
     await db
       .update(position)
-      .set({ planId: data.planId })
+      .set({
+        planId: data.planId,
+        planSnapshotEntryPrice: plan.entryPrice,
+        planSnapshotStopPrice: plan.stopPrice,
+        planSnapshotTargetPrice: plan.targetPrice,
+        planSnapshotSize: plan.plannedSize,
+        planSnapshotRationale: plan.rationale,
+      })
       .where(eq(position.id, data.positionId))
     return { ok: true }
   })
@@ -247,7 +256,14 @@ export const unlinkPositionFromPlan = createServerFn({ method: 'POST' })
     const userId = await requireUserMutation()
     await db
       .update(position)
-      .set({ planId: null })
+      .set({
+        planId: null,
+        planSnapshotEntryPrice: null,
+        planSnapshotStopPrice: null,
+        planSnapshotTargetPrice: null,
+        planSnapshotSize: null,
+        planSnapshotRationale: null,
+      })
       .where(and(eq(position.id, data.positionId), eq(position.userId, userId)))
     return { ok: true }
   })

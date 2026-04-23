@@ -189,17 +189,27 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
     // Linked plan
     let linkedPlan: TradeDetailBundle['linkedPlan'] = null
     if (pos.planId) {
+      // Read live plan for intendedSide + rationale display fallback
       const [plan] = await db.select().from(tradePlan)
         .where(and(eq(tradePlan.id, pos.planId), eq(tradePlan.userId, userId))).limit(1)
       if (plan) {
+        // Prefer snapshot values stored at link time; fall back to live plan for legacy links
         linkedPlan = {
           id: plan.id,
           intendedSide: plan.intendedSide,
-          entryPrice: plan.entryPrice ? Number(plan.entryPrice) : null,
-          stopPrice: plan.stopPrice ? Number(plan.stopPrice) : null,
-          targetPrice: plan.targetPrice ? Number(plan.targetPrice) : null,
-          plannedSize: plan.plannedSize ? Number(plan.plannedSize) : null,
-          rationale: plan.rationale,
+          entryPrice: pos.planSnapshotEntryPrice != null
+            ? Number(pos.planSnapshotEntryPrice)
+            : plan.entryPrice != null ? Number(plan.entryPrice) : null,
+          stopPrice: pos.planSnapshotStopPrice != null
+            ? Number(pos.planSnapshotStopPrice)
+            : plan.stopPrice != null ? Number(plan.stopPrice) : null,
+          targetPrice: pos.planSnapshotTargetPrice != null
+            ? Number(pos.planSnapshotTargetPrice)
+            : plan.targetPrice != null ? Number(plan.targetPrice) : null,
+          plannedSize: pos.planSnapshotSize != null
+            ? Number(pos.planSnapshotSize)
+            : plan.plannedSize != null ? Number(plan.plannedSize) : null,
+          rationale: pos.planSnapshotRationale ?? plan.rationale,
         }
       }
     }
