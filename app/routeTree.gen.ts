@@ -10,8 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as publicIndexRouteImport } from './routes/(public)/index'
+import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
 import { Route as ApiInngestRouteImport } from './routes/api/inngest'
 import { Route as ApiDemoRouteImport } from './routes/api/demo'
+import { Route as publicUnsubscribedRouteImport } from './routes/(public)/unsubscribed'
 import { Route as publicLoginRouteImport } from './routes/(public)/login'
 import { Route as publicChangelogRouteImport } from './routes/(public)/changelog'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
@@ -28,6 +30,11 @@ const publicIndexRoute = publicIndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUnsubscribeRoute = ApiUnsubscribeRouteImport.update({
+  id: '/api/unsubscribe',
+  path: '/api/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiInngestRoute = ApiInngestRouteImport.update({
   id: '/api/inngest',
   path: '/api/inngest',
@@ -36,6 +43,11 @@ const ApiInngestRoute = ApiInngestRouteImport.update({
 const ApiDemoRoute = ApiDemoRouteImport.update({
   id: '/api/demo',
   path: '/api/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const publicUnsubscribedRoute = publicUnsubscribedRouteImport.update({
+  id: '/(public)/unsubscribed',
+  path: '/unsubscribed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const publicLoginRoute = publicLoginRouteImport.update({
@@ -92,8 +104,10 @@ const appLayoutTradesPositionIdRoute =
 export interface FileRoutesByFullPath {
   '/changelog': typeof publicChangelogRoute
   '/login': typeof publicLoginRoute
+  '/unsubscribed': typeof publicUnsubscribedRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/': typeof publicIndexRoute
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
@@ -106,8 +120,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/changelog': typeof publicChangelogRoute
   '/login': typeof publicLoginRoute
+  '/unsubscribed': typeof publicUnsubscribedRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/': typeof publicIndexRoute
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
@@ -122,8 +138,10 @@ export interface FileRoutesById {
   '/(app)/_layout': typeof appLayoutRouteWithChildren
   '/(public)/changelog': typeof publicChangelogRoute
   '/(public)/login': typeof publicLoginRoute
+  '/(public)/unsubscribed': typeof publicUnsubscribedRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/(public)/': typeof publicIndexRoute
   '/(app)/_layout/dashboard': typeof appLayoutDashboardRoute
   '/(app)/_layout/import': typeof appLayoutImportRoute
@@ -138,8 +156,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/changelog'
     | '/login'
+    | '/unsubscribed'
     | '/api/demo'
     | '/api/inngest'
+    | '/api/unsubscribe'
     | '/'
     | '/dashboard'
     | '/import'
@@ -152,8 +172,10 @@ export interface FileRouteTypes {
   to:
     | '/changelog'
     | '/login'
+    | '/unsubscribed'
     | '/api/demo'
     | '/api/inngest'
+    | '/api/unsubscribe'
     | '/'
     | '/dashboard'
     | '/import'
@@ -167,8 +189,10 @@ export interface FileRouteTypes {
     | '/(app)/_layout'
     | '/(public)/changelog'
     | '/(public)/login'
+    | '/(public)/unsubscribed'
     | '/api/demo'
     | '/api/inngest'
+    | '/api/unsubscribe'
     | '/(public)/'
     | '/(app)/_layout/dashboard'
     | '/(app)/_layout/import'
@@ -183,8 +207,10 @@ export interface RootRouteChildren {
   appLayoutRoute: typeof appLayoutRouteWithChildren
   publicChangelogRoute: typeof publicChangelogRoute
   publicLoginRoute: typeof publicLoginRoute
+  publicUnsubscribedRoute: typeof publicUnsubscribedRoute
   ApiDemoRoute: typeof ApiDemoRoute
   ApiInngestRoute: typeof ApiInngestRoute
+  ApiUnsubscribeRoute: typeof ApiUnsubscribeRoute
   publicIndexRoute: typeof publicIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -196,6 +222,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof publicIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/unsubscribe': {
+      id: '/api/unsubscribe'
+      path: '/api/unsubscribe'
+      fullPath: '/api/unsubscribe'
+      preLoaderRoute: typeof ApiUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/inngest': {
@@ -210,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/api/demo'
       fullPath: '/api/demo'
       preLoaderRoute: typeof ApiDemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(public)/unsubscribed': {
+      id: '/(public)/unsubscribed'
+      path: '/unsubscribed'
+      fullPath: '/unsubscribed'
+      preLoaderRoute: typeof publicUnsubscribedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(public)/login': {
@@ -311,8 +351,10 @@ const rootRouteChildren: RootRouteChildren = {
   appLayoutRoute: appLayoutRouteWithChildren,
   publicChangelogRoute: publicChangelogRoute,
   publicLoginRoute: publicLoginRoute,
+  publicUnsubscribedRoute: publicUnsubscribedRoute,
   ApiDemoRoute: ApiDemoRoute,
   ApiInngestRoute: ApiInngestRoute,
+  ApiUnsubscribeRoute: ApiUnsubscribeRoute,
   publicIndexRoute: publicIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

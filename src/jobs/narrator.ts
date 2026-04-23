@@ -8,6 +8,8 @@ import { buildDigestFacts } from '~/narrator/facts/digestFacts'
 import { composeDigest } from '~/narrator/compose'
 import { renderDigestEmail } from '~/narrator/email/render'
 import { sendDigestEmail } from '~/narrator/email/send'
+import { signUnsubscribeToken } from '~/lib/unsubscribeToken'
+import { env } from '~/lib/env'
 import type { DigestNarrative } from '~/narrator/schemas'
 import type { DigestComposePayload, DigestSendPayload } from './events'
 import { sendDigestCompose, sendDigestSend } from './events'
@@ -314,7 +316,8 @@ export const sendDigestFn = inngest.createFunction(
     // Step 3: render email
     const rendered = await step.run('render', () => {
       log.info('send-digest: rendering email', { digestRunId, userId })
-      return renderDigestEmail(facts, narrative)
+      const unsubscribeUrl = `${env.BETTER_AUTH_URL}/api/unsubscribe?t=${signUnsubscribeToken(userId)}`
+      return renderDigestEmail(facts, narrative, { unsubscribeUrl })
     })
 
     // Step 4: send email

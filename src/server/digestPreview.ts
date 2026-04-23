@@ -5,6 +5,8 @@ import { db } from '~/db/client'
 import { buildDigestFacts } from '~/narrator/facts/digestFacts'
 import { composeDigest } from '~/narrator/compose'
 import { renderDigestEmail } from '~/narrator/email/render'
+import { signUnsubscribeToken } from '~/lib/unsubscribeToken'
+import { env } from '~/lib/env'
 
 export type DigestPreview = {
   isoWeek: string
@@ -27,7 +29,8 @@ export const previewDigest = createServerFn({ method: 'GET' }).handler(async () 
   const isoWeek = currentIsoWeek()
   const facts = await buildDigestFacts(db, userId, isoWeek)
   const composed = await composeDigest(facts)
-  const email = renderDigestEmail(facts, composed.narrative)
+  const unsubscribeUrl = `${env.BETTER_AUTH_URL}/api/unsubscribe?t=${signUnsubscribeToken(userId)}`
+  const email = renderDigestEmail(facts, composed.narrative, { unsubscribeUrl })
 
   return {
     isoWeek,

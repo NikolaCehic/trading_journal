@@ -111,7 +111,7 @@ describe('renderDigestEmail', () => {
       summary: { ...SUMMARY, totalPnl: 1897 },
     })
     const narrative = makeNarrative({ oneThingToTry: 'Reduce size after losses.' })
-    const { subject } = renderDigestEmail(facts, narrative)
+    const { subject } = renderDigestEmail(facts, narrative, { unsubscribeUrl: '#' })
 
     expect(subject).toContain('Apr 19')
     expect(subject).toContain('+$1,897')
@@ -121,7 +121,7 @@ describe('renderDigestEmail', () => {
   it('subject uses negative P&L with minus sign and no thing when oneThingToTry is null', () => {
     const facts = makeFactBundle({ summary: { ...SUMMARY, totalPnl: -512 } })
     const narrative = makeNarrative({ oneThingToTry: null })
-    const { subject } = renderDigestEmail(facts, narrative)
+    const { subject } = renderDigestEmail(facts, narrative, { unsubscribeUrl: '#' })
 
     expect(subject).toContain('-$512')
     expect(subject).toContain('0 things to try')
@@ -129,7 +129,7 @@ describe('renderDigestEmail', () => {
 
   it('omits biggest win section when narrative.biggestWin is null', () => {
     const narrative = makeNarrative({ biggestWin: null })
-    const { html, text } = renderDigestEmail(makeFactBundle(), narrative)
+    const { html, text } = renderDigestEmail(makeFactBundle(), narrative, { unsubscribeUrl: '#' })
 
     expect(html).not.toContain('Biggest Win')
     expect(text).not.toContain('Biggest Win')
@@ -137,7 +137,7 @@ describe('renderDigestEmail', () => {
 
   it('omits biggest loss section when narrative.biggestLoss is null', () => {
     const narrative = makeNarrative({ biggestLoss: null })
-    const { html, text } = renderDigestEmail(makeFactBundle(), narrative)
+    const { html, text } = renderDigestEmail(makeFactBundle(), narrative, { unsubscribeUrl: '#' })
 
     expect(html).not.toContain('Biggest Loss')
     expect(text).not.toContain('Biggest Loss')
@@ -145,7 +145,7 @@ describe('renderDigestEmail', () => {
 
   it('omits one-thing card when oneThingToTry is null', () => {
     const narrative = makeNarrative({ oneThingToTry: null })
-    const { html, text } = renderDigestEmail(makeFactBundle(), narrative)
+    const { html, text } = renderDigestEmail(makeFactBundle(), narrative, { unsubscribeUrl: '#' })
 
     expect(html).not.toContain('One Thing to Try')
     expect(text).not.toContain('One Thing to Try')
@@ -156,7 +156,7 @@ describe('renderDigestEmail', () => {
     const narrative = makeNarrative({
       biggestWin: { positionId: 'pos_win_1', prose: maliciousProse },
     })
-    const { html } = renderDigestEmail(makeFactBundle(), narrative)
+    const { html } = renderDigestEmail(makeFactBundle(), narrative, { unsubscribeUrl: '#' })
 
     expect(html).not.toContain('<script>')
     expect(html).not.toContain('</script>')
@@ -164,7 +164,7 @@ describe('renderDigestEmail', () => {
   })
 
   it('html contains no CSS classes or style blocks', () => {
-    const { html } = renderDigestEmail(makeFactBundle(), makeNarrative())
+    const { html } = renderDigestEmail(makeFactBundle(), makeNarrative(), { unsubscribeUrl: '#' })
 
     expect(html).not.toMatch(/class\s*=/)
     expect(html).not.toContain('<style')
@@ -194,7 +194,7 @@ describe('sendDigestEmail', () => {
 
     const { sendDigestEmail } = await import('~/narrator/email/send')
 
-    const email = renderDigestEmail(makeFactBundle(), makeNarrative())
+    const email = renderDigestEmail(makeFactBundle(), makeNarrative(), { unsubscribeUrl: '#' })
     const result = await sendDigestEmail('user@example.com', email)
 
     expect(result).toEqual({ sent: false, reason: 'no_api_key', logged: true })
@@ -206,7 +206,7 @@ describe('sendDigestEmail', () => {
 
     const { sendDigestEmail } = await import('~/narrator/email/send')
 
-    const email = renderDigestEmail(makeFactBundle(), makeNarrative())
+    const email = renderDigestEmail(makeFactBundle(), makeNarrative(), { unsubscribeUrl: '#' })
     const result = await sendDigestEmail('user@example.com', email)
 
     expect(result).toEqual({ sent: false, reason: 'no_from_email', logged: true })
@@ -217,7 +217,7 @@ describe('sendDigestEmail', () => {
     mockSend.mockResolvedValueOnce({ data: { id: 'msg_123' }, error: null })
 
     const { sendDigestEmail } = await import('~/narrator/email/send')
-    const email = renderDigestEmail(makeFactBundle(), makeNarrative())
+    const email = renderDigestEmail(makeFactBundle(), makeNarrative(), { unsubscribeUrl: '#' })
     const result = await sendDigestEmail('user@example.com', email)
 
     expect(result).toEqual({ sent: true, messageId: 'msg_123' })
@@ -231,7 +231,7 @@ describe('sendDigestEmail', () => {
     mockSend.mockRejectedValueOnce(new Error('rate limit exceeded'))
 
     const { sendDigestEmail } = await import('~/narrator/email/send')
-    const email = renderDigestEmail(makeFactBundle(), makeNarrative())
+    const email = renderDigestEmail(makeFactBundle(), makeNarrative(), { unsubscribeUrl: '#' })
 
     // Must not throw
     const result = await sendDigestEmail('user@example.com', email)

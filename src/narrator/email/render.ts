@@ -155,7 +155,9 @@ function buildOneThingCard(prose: string): string {
 export function renderDigestEmail(
   facts: DigestFactBundle,
   narrative: DigestNarrative,
+  options: { unsubscribeUrl: string },
 ): RenderedEmail {
+  const { unsubscribeUrl } = options
   // -- Subject ---------------------------------------------------------------
   const periodEnd = formatPeriodEnd(facts.period.end)
   const pnlStr = formatPnl(facts.summary.totalPnl)
@@ -254,7 +256,7 @@ export function renderDigestEmail(
           <!-- Footer -->
           <tr>
             <td style="padding: 12px 24px 20px 24px;" align="center">
-              <p style="margin: 0; font-family: ${C.fontUi}; font-size: 12px; color: ${C.textSubtle};">Sent by Trade Journal &middot; reply to reach a human</p>
+              <p style="margin: 0; font-family: ${C.fontUi}; font-size: 12px; color: ${C.textSubtle};">Sent by Trade Journal &middot; reply to reach a human &middot; <a href="${esc(unsubscribeUrl)}" style="color: ${C.textSubtle}; text-decoration: underline;">Unsubscribe</a></p>
             </td>
           </tr>
 
@@ -301,6 +303,8 @@ export function renderDigestEmail(
   lines.push('')
   lines.push('---')
   lines.push('Sent by Trade Journal. Reply to reach a human.')
+  lines.push('')
+  lines.push(`Unsubscribe: ${unsubscribeUrl}`)
 
   return {
     subject,
