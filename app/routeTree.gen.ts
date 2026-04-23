@@ -24,9 +24,12 @@ import { Route as appLayoutTradesIndexRouteImport } from './routes/(app)/_layout
 import { Route as appLayoutSettingsIndexRouteImport } from './routes/(app)/_layout/settings/index'
 import { Route as appLayoutPlansIndexRouteImport } from './routes/(app)/_layout/plans/index'
 import { Route as appLayoutDigestIndexRouteImport } from './routes/(app)/_layout/digest/index'
+import { Route as appLayoutDetectorsIndexRouteImport } from './routes/(app)/_layout/detectors/index'
 import { Route as appLayoutTradesPositionIdRouteImport } from './routes/(app)/_layout/trades/$positionId'
 import { Route as appLayoutPlansNewRouteImport } from './routes/(app)/_layout/plans/new'
 import { Route as appLayoutPlansPlanIdRouteImport } from './routes/(app)/_layout/plans/$planId'
+import { Route as appLayoutDetectorsNewRouteImport } from './routes/(app)/_layout/detectors/new'
+import { Route as appLayoutDetectorsDetectorIdRouteImport } from './routes/(app)/_layout/detectors/$detectorId'
 
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/(public)/',
@@ -102,6 +105,11 @@ const appLayoutDigestIndexRoute = appLayoutDigestIndexRouteImport.update({
   path: '/digest/',
   getParentRoute: () => appLayoutRoute,
 } as any)
+const appLayoutDetectorsIndexRoute = appLayoutDetectorsIndexRouteImport.update({
+  id: '/detectors/',
+  path: '/detectors/',
+  getParentRoute: () => appLayoutRoute,
+} as any)
 const appLayoutTradesPositionIdRoute =
   appLayoutTradesPositionIdRouteImport.update({
     id: '/trades/$positionId',
@@ -118,6 +126,17 @@ const appLayoutPlansPlanIdRoute = appLayoutPlansPlanIdRouteImport.update({
   path: '/plans/$planId',
   getParentRoute: () => appLayoutRoute,
 } as any)
+const appLayoutDetectorsNewRoute = appLayoutDetectorsNewRouteImport.update({
+  id: '/detectors/new',
+  path: '/detectors/new',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutDetectorsDetectorIdRoute =
+  appLayoutDetectorsDetectorIdRouteImport.update({
+    id: '/detectors/$detectorId',
+    path: '/detectors/$detectorId',
+    getParentRoute: () => appLayoutRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/changelog': typeof publicChangelogRoute
@@ -130,9 +149,12 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/detectors/$detectorId': typeof appLayoutDetectorsDetectorIdRoute
+  '/detectors/new': typeof appLayoutDetectorsNewRoute
   '/plans/$planId': typeof appLayoutPlansPlanIdRoute
   '/plans/new': typeof appLayoutPlansNewRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/detectors/': typeof appLayoutDetectorsIndexRoute
   '/digest/': typeof appLayoutDigestIndexRoute
   '/plans/': typeof appLayoutPlansIndexRoute
   '/settings/': typeof appLayoutSettingsIndexRoute
@@ -149,9 +171,12 @@ export interface FileRoutesByTo {
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/detectors/$detectorId': typeof appLayoutDetectorsDetectorIdRoute
+  '/detectors/new': typeof appLayoutDetectorsNewRoute
   '/plans/$planId': typeof appLayoutPlansPlanIdRoute
   '/plans/new': typeof appLayoutPlansNewRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/detectors': typeof appLayoutDetectorsIndexRoute
   '/digest': typeof appLayoutDigestIndexRoute
   '/plans': typeof appLayoutPlansIndexRoute
   '/settings': typeof appLayoutSettingsIndexRoute
@@ -170,9 +195,12 @@ export interface FileRoutesById {
   '/(app)/_layout/dashboard': typeof appLayoutDashboardRoute
   '/(app)/_layout/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/(app)/_layout/detectors/$detectorId': typeof appLayoutDetectorsDetectorIdRoute
+  '/(app)/_layout/detectors/new': typeof appLayoutDetectorsNewRoute
   '/(app)/_layout/plans/$planId': typeof appLayoutPlansPlanIdRoute
   '/(app)/_layout/plans/new': typeof appLayoutPlansNewRoute
   '/(app)/_layout/trades/$positionId': typeof appLayoutTradesPositionIdRoute
+  '/(app)/_layout/detectors/': typeof appLayoutDetectorsIndexRoute
   '/(app)/_layout/digest/': typeof appLayoutDigestIndexRoute
   '/(app)/_layout/plans/': typeof appLayoutPlansIndexRoute
   '/(app)/_layout/settings/': typeof appLayoutSettingsIndexRoute
@@ -191,9 +219,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/import'
     | '/api/auth/$'
+    | '/detectors/$detectorId'
+    | '/detectors/new'
     | '/plans/$planId'
     | '/plans/new'
     | '/trades/$positionId'
+    | '/detectors/'
     | '/digest/'
     | '/plans/'
     | '/settings/'
@@ -210,9 +241,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/import'
     | '/api/auth/$'
+    | '/detectors/$detectorId'
+    | '/detectors/new'
     | '/plans/$planId'
     | '/plans/new'
     | '/trades/$positionId'
+    | '/detectors'
     | '/digest'
     | '/plans'
     | '/settings'
@@ -230,9 +264,12 @@ export interface FileRouteTypes {
     | '/(app)/_layout/dashboard'
     | '/(app)/_layout/import'
     | '/api/auth/$'
+    | '/(app)/_layout/detectors/$detectorId'
+    | '/(app)/_layout/detectors/new'
     | '/(app)/_layout/plans/$planId'
     | '/(app)/_layout/plans/new'
     | '/(app)/_layout/trades/$positionId'
+    | '/(app)/_layout/detectors/'
     | '/(app)/_layout/digest/'
     | '/(app)/_layout/plans/'
     | '/(app)/_layout/settings/'
@@ -358,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutDigestIndexRouteImport
       parentRoute: typeof appLayoutRoute
     }
+    '/(app)/_layout/detectors/': {
+      id: '/(app)/_layout/detectors/'
+      path: '/detectors'
+      fullPath: '/detectors/'
+      preLoaderRoute: typeof appLayoutDetectorsIndexRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
     '/(app)/_layout/trades/$positionId': {
       id: '/(app)/_layout/trades/$positionId'
       path: '/trades/$positionId'
@@ -379,15 +423,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutPlansPlanIdRouteImport
       parentRoute: typeof appLayoutRoute
     }
+    '/(app)/_layout/detectors/new': {
+      id: '/(app)/_layout/detectors/new'
+      path: '/detectors/new'
+      fullPath: '/detectors/new'
+      preLoaderRoute: typeof appLayoutDetectorsNewRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/detectors/$detectorId': {
+      id: '/(app)/_layout/detectors/$detectorId'
+      path: '/detectors/$detectorId'
+      fullPath: '/detectors/$detectorId'
+      preLoaderRoute: typeof appLayoutDetectorsDetectorIdRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
   }
 }
 
 interface appLayoutRouteChildren {
   appLayoutDashboardRoute: typeof appLayoutDashboardRoute
   appLayoutImportRoute: typeof appLayoutImportRoute
+  appLayoutDetectorsDetectorIdRoute: typeof appLayoutDetectorsDetectorIdRoute
+  appLayoutDetectorsNewRoute: typeof appLayoutDetectorsNewRoute
   appLayoutPlansPlanIdRoute: typeof appLayoutPlansPlanIdRoute
   appLayoutPlansNewRoute: typeof appLayoutPlansNewRoute
   appLayoutTradesPositionIdRoute: typeof appLayoutTradesPositionIdRoute
+  appLayoutDetectorsIndexRoute: typeof appLayoutDetectorsIndexRoute
   appLayoutDigestIndexRoute: typeof appLayoutDigestIndexRoute
   appLayoutPlansIndexRoute: typeof appLayoutPlansIndexRoute
   appLayoutSettingsIndexRoute: typeof appLayoutSettingsIndexRoute
@@ -397,9 +458,12 @@ interface appLayoutRouteChildren {
 const appLayoutRouteChildren: appLayoutRouteChildren = {
   appLayoutDashboardRoute: appLayoutDashboardRoute,
   appLayoutImportRoute: appLayoutImportRoute,
+  appLayoutDetectorsDetectorIdRoute: appLayoutDetectorsDetectorIdRoute,
+  appLayoutDetectorsNewRoute: appLayoutDetectorsNewRoute,
   appLayoutPlansPlanIdRoute: appLayoutPlansPlanIdRoute,
   appLayoutPlansNewRoute: appLayoutPlansNewRoute,
   appLayoutTradesPositionIdRoute: appLayoutTradesPositionIdRoute,
+  appLayoutDetectorsIndexRoute: appLayoutDetectorsIndexRoute,
   appLayoutDigestIndexRoute: appLayoutDigestIndexRoute,
   appLayoutPlansIndexRoute: appLayoutPlansIndexRoute,
   appLayoutSettingsIndexRoute: appLayoutSettingsIndexRoute,

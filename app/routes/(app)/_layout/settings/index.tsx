@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useSession } from '~/auth/client'
@@ -114,6 +114,17 @@ function SettingsPage() {
           >
             <Icon name="file" size={12} /> {exportPending ? 'Exporting…' : 'Download export'}
           </button>
+        </div>
+      </Card>
+
+      <Card title="Custom detectors" subtitle="define your own patterns">
+        <div style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+          <div style={{ fontSize: 13, color: 'var(--fg-muted)', maxWidth: 440, lineHeight: 1.5 }}>
+            Write rules that flag trades when specific conditions hold — "Friday BTC losses," "FOMO entries after a losing streak," anything the built-ins don't catch.
+          </div>
+          <Link to="/detectors" className="tj-btn" style={{ textDecoration: 'none' }}>
+            <Icon name="bolt" size={12} /> Manage
+          </Link>
         </div>
       </Card>
     </div>
