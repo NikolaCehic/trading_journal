@@ -8,4 +8,8 @@
 // v3: Added plan_adherence detector + position.planId field threading through
 //     derivation context. Users must run `pnpm rederive` after deploy so that
 //     plan links are re-attached and findings are generated at the new version.
-export const DERIVATION_VERSION = 3
+//
+// v4: Adds support for user-defined custom detectors (Phase 11). Custom detector
+//     findings are emitted alongside built-in findings. Users must run
+//     `pnpm rederive` after deploy to regenerate findings at the new version.
+export const DERIVATION_VERSION = 4

@@ -1,7 +1,8 @@
 import type { PositionSide } from './position'
 
 export type FindingSeverity = 'info' | 'warning' | 'critical'
-export type DetectorId =
+
+export type BuiltinDetectorId =
   | 'revenge_trading'
   | 'oversized_positions'
   | 'loss_of_discipline_windows'
@@ -14,6 +15,10 @@ export type DetectorId =
   | 'symbol_underperformance'
   | 'leverage_creep'
   | 'plan_adherence'
+
+export type CustomDetectorId = `custom:${string}`
+
+export type DetectorId = BuiltinDetectorId | CustomDetectorId
 
 export type Finding<TEvidence = unknown> = {
   id: string
