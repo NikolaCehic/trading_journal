@@ -14,6 +14,18 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.12',
+    date: '2026-04-24',
+    title: 'Polish close-out',
+    shipped: [
+      'Volume pane on the trade-detail candle chart (green/red bars by candle direction)',
+      'BTC price overlay on the dashboard equity curve (dashed secondary line)',
+      'Nested predicate composition in /detectors — groups of groups with all/any/not, max depth 4',
+      'Per-user toggles for all 12 built-in detectors (disable what doesn\'t fit your trading)',
+      'Export / import custom detectors as JSON (idempotent by name)',
+    ],
+  },
+  {
     version: 'v0.11',
     date: '2026-04-24',
     title: 'User-defined custom detectors',

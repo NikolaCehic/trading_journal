@@ -513,3 +513,47 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Importing detectors from JSON / exporting to JSON.** Power-user feature, defer.
 
 ---
+
+## Phase 12 — Polish Close-Out · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-24-phase-12-polish-close.md`
+
+**Shipped** (5 task commits from `1dc0749` through `05e8560`)
+
+- **Volume pane on candle chart** — `CandlesAndFills` in `$positionId.tsx` split its `innerH` into a top 72% price pane + 22% volume pane with a 6px gap + 1px separator line. Each candle's `volume` renders as a bar colored by candle direction (green/red, 0.55 opacity). Entry/exit guide lines, fill drop lines, and the hover crosshair clip to the price pane only. SVG viewBox still `h=280`.
+- **BTC price overlay on dashboard equity curve** — new `getBtcEquityContext({ from, to })` server fn in `src/server/market.ts` fetches BTCUSDT daily candles via the existing `getCandles` cache. Dashboard fires it as a parallel `useQuery` when the equity curve has data. `EquityCurve` accepts optional `btcContext` prop and renders a dashed secondary line independently scaled to fill the chart's vertical range. Legend chip in the card head: solid swatch for "Your P&L", dashed for "BTC". Hover tooltip picks up the BTC value for the matching date. Graceful no-op when the fetch fails or returns empty.
+- **Nested predicate composition** — `src/domain/detectorForm.ts` now owns the shared types (`Composition`, `LeafCondition`, `GroupNode`, `Node`) + helpers (`leafToPredicate`, `nodeToPredicate`, `predicateToLeaf`, `predicateToNode`, `rootNodeFromPredicate`, `makeDefaultLeaf`, `makeDefaultRoot`, `nodeHasValues`). New `PredicateGroupEditor` is a recursive component with per-group composition toggle (`all | any | not`), add condition / add group buttons, remove-group button, max depth 4 (the "Add group" button is hidden beyond that), and a special-case for `not` (exactly one child, add buttons hidden when populated). Detail page's read-only view uses `GroupReadOnly` — recursive tree that indents + shows group composition. Backend's `PositionPredicateSchema` unchanged — v1 was already recursive.
+- **Per-user built-in detector toggles** — new `user.disabledBuiltinDetectors text[] default '{}'` column (migration `drizzle/0016_bent_baron_zemo.sql`); Better Auth `additionalFields` exposes it as `string[]`. `BUILTIN_DETECTOR_IDS` exported from `src/domain/finding.ts` for validation. `setBuiltinDetectorEnabled` + `getBuiltinDetectorSettings` server fns added to `src/server/userPrefs.ts`. Runner in `src/derivation/runner.ts` reads the disabled list and filters `DETECTORS` before evaluation — logs the active/disabled counts. `/detectors` admin page renders a new "Built-in detectors" card above the custom list with a toggle per detector + short blurbs.
+- **Export / import custom detectors** — `importCustomDetectors` server fn in `src/server/customDetectors.ts` accepts up to 100 detectors per batch, idempotent on `(userId, name)` so re-imports are safe. Client-side export button downloads a JSON bundle `{ schemaVersion, exportedAt, detectors[] }` using the existing `downloadFile` helper. Import dialog (inline modal, same pattern as trades bulk-tag dialog) accepts pasted JSON, parses either bare-array or `{ detectors: [...] }` shape, calls the server fn, reports imported / skipped / errors counts.
+
+**Test state after Phase 12:** 317 passing / 5 skipped / 0 failing. Typecheck clean.
+
+**Key design decisions / gotchas**
+- **Volume pane uses opacity 0.55** so price candles remain visually dominant. No volume axis labels — pure visual scale.
+- **BTC overlay independently scaled**, not indexed-to-100 — simpler implementation, preserves the shape of BTC's price action without requiring a baseline reference for the user's P&L (which would be awkward without knowing starting capital).
+- **Nested predicate max depth is 4** — client-side UI limit. Backend accepts arbitrary depth via the `z.lazy(...)` schema; power users could craft deeper trees by POSTing directly, but that's cosmetic. Depth 4 covers every real-world predicate we've seen.
+- **`not` groups hold exactly one child**, enforced by the UI — switching `all`/`any` → `not` truncates to the first child, and add buttons are hidden once populated. Backend `nodeToPredicate` throws if a `not` group has zero or multiple children, so the form save-flow can't accidentally submit an invalid tree.
+- **Built-in detector disable list lives on `user`**, not a separate join table, since the list is small (≤12) and per-user. Keeps reads simple (one column on the session user row).
+- **Runner filter is the only enforcement point** — existing findings from previously-enabled built-ins still live in the DB until the user re-derives. This is consistent with how DERIVATION_VERSION works: historic findings persist at their version.
+- **Import idempotency by `name`** — user can re-import the same file 10 times; subsequent runs skip instead of duplicating. The per-detector error list surfaces if anything unexpected breaks (e.g., zod-rejection on a specific row — though today the outer schema validates the whole batch).
+- **No schemaVersion migration** in the import flow — the exported JSON has `schemaVersion: 1`, but the importer just looks for a `detectors` array (or treats the whole JSON as the array). If we ever change the predicate schema, we'll add a version-bump migration path.
+
+**Deferred from Phase 12 (and from the project overall, by explicit user choice)**
+- **Mobile UX** — desktop-first remains. Responsive layouts for phones/tablets would require significant layout rework (filter bars, trade table, candle chart touch interactions). Parked indefinitely.
+- **Preview deploys from CI** — needs external service (Vercel / Cloudflare Pages / Netlify) + API tokens + DNS setup. That's infra operations, not code. Parked.
+- **Alerts on custom detector matches** — real-time push channel. Out of scope.
+- **Sharing custom detectors publicly / a detector marketplace** — privacy-first design; intentionally out of scope.
+- **Nested `not` with multiple children** — semantically ambiguous; keep `not` single-child.
+- **Client-side preview of BTC-vs-strategy relative return** — just show the two lines; no reindex math.
+
+---
+
+## What's next
+
+The core product is done. Twelve phases covering foundation → ingestion → derivation → UI → AI narrator → real data + demo → polish → narrator prefs → plans + regression → market data → plan automation + CI → custom detectors → polish close-out.
+
+Not planned:
+- Mobile UX (user's choice)
+- Deploy infra (outside scope)
+
+If a Phase 13 happens, likely candidates are: Bybit derivatives (not spot) if user reports gaps, alerts / webhooks, or something driven by user feedback from live use. Everything explicitly written into earlier wikis as "deferred" is closed.
