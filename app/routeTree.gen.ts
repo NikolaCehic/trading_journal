@@ -22,8 +22,11 @@ import { Route as appLayoutImportRouteImport } from './routes/(app)/_layout/impo
 import { Route as appLayoutDashboardRouteImport } from './routes/(app)/_layout/dashboard'
 import { Route as appLayoutTradesIndexRouteImport } from './routes/(app)/_layout/trades/index'
 import { Route as appLayoutSettingsIndexRouteImport } from './routes/(app)/_layout/settings/index'
+import { Route as appLayoutPlansIndexRouteImport } from './routes/(app)/_layout/plans/index'
 import { Route as appLayoutDigestIndexRouteImport } from './routes/(app)/_layout/digest/index'
 import { Route as appLayoutTradesPositionIdRouteImport } from './routes/(app)/_layout/trades/$positionId'
+import { Route as appLayoutPlansNewRouteImport } from './routes/(app)/_layout/plans/new'
+import { Route as appLayoutPlansPlanIdRouteImport } from './routes/(app)/_layout/plans/$planId'
 
 const publicIndexRoute = publicIndexRouteImport.update({
   id: '/(public)/',
@@ -89,6 +92,11 @@ const appLayoutSettingsIndexRoute = appLayoutSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => appLayoutRoute,
 } as any)
+const appLayoutPlansIndexRoute = appLayoutPlansIndexRouteImport.update({
+  id: '/plans/',
+  path: '/plans/',
+  getParentRoute: () => appLayoutRoute,
+} as any)
 const appLayoutDigestIndexRoute = appLayoutDigestIndexRouteImport.update({
   id: '/digest/',
   path: '/digest/',
@@ -100,6 +108,16 @@ const appLayoutTradesPositionIdRoute =
     path: '/trades/$positionId',
     getParentRoute: () => appLayoutRoute,
   } as any)
+const appLayoutPlansNewRoute = appLayoutPlansNewRouteImport.update({
+  id: '/plans/new',
+  path: '/plans/new',
+  getParentRoute: () => appLayoutRoute,
+} as any)
+const appLayoutPlansPlanIdRoute = appLayoutPlansPlanIdRouteImport.update({
+  id: '/plans/$planId',
+  path: '/plans/$planId',
+  getParentRoute: () => appLayoutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/changelog': typeof publicChangelogRoute
@@ -112,8 +130,11 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/plans/$planId': typeof appLayoutPlansPlanIdRoute
+  '/plans/new': typeof appLayoutPlansNewRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/digest/': typeof appLayoutDigestIndexRoute
+  '/plans/': typeof appLayoutPlansIndexRoute
   '/settings/': typeof appLayoutSettingsIndexRoute
   '/trades/': typeof appLayoutTradesIndexRoute
 }
@@ -128,8 +149,11 @@ export interface FileRoutesByTo {
   '/dashboard': typeof appLayoutDashboardRoute
   '/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/plans/$planId': typeof appLayoutPlansPlanIdRoute
+  '/plans/new': typeof appLayoutPlansNewRoute
   '/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/digest': typeof appLayoutDigestIndexRoute
+  '/plans': typeof appLayoutPlansIndexRoute
   '/settings': typeof appLayoutSettingsIndexRoute
   '/trades': typeof appLayoutTradesIndexRoute
 }
@@ -146,8 +170,11 @@ export interface FileRoutesById {
   '/(app)/_layout/dashboard': typeof appLayoutDashboardRoute
   '/(app)/_layout/import': typeof appLayoutImportRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/(app)/_layout/plans/$planId': typeof appLayoutPlansPlanIdRoute
+  '/(app)/_layout/plans/new': typeof appLayoutPlansNewRoute
   '/(app)/_layout/trades/$positionId': typeof appLayoutTradesPositionIdRoute
   '/(app)/_layout/digest/': typeof appLayoutDigestIndexRoute
+  '/(app)/_layout/plans/': typeof appLayoutPlansIndexRoute
   '/(app)/_layout/settings/': typeof appLayoutSettingsIndexRoute
   '/(app)/_layout/trades/': typeof appLayoutTradesIndexRoute
 }
@@ -164,8 +191,11 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/import'
     | '/api/auth/$'
+    | '/plans/$planId'
+    | '/plans/new'
     | '/trades/$positionId'
     | '/digest/'
+    | '/plans/'
     | '/settings/'
     | '/trades/'
   fileRoutesByTo: FileRoutesByTo
@@ -180,8 +210,11 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/import'
     | '/api/auth/$'
+    | '/plans/$planId'
+    | '/plans/new'
     | '/trades/$positionId'
     | '/digest'
+    | '/plans'
     | '/settings'
     | '/trades'
   id:
@@ -197,8 +230,11 @@ export interface FileRouteTypes {
     | '/(app)/_layout/dashboard'
     | '/(app)/_layout/import'
     | '/api/auth/$'
+    | '/(app)/_layout/plans/$planId'
+    | '/(app)/_layout/plans/new'
     | '/(app)/_layout/trades/$positionId'
     | '/(app)/_layout/digest/'
+    | '/(app)/_layout/plans/'
     | '/(app)/_layout/settings/'
     | '/(app)/_layout/trades/'
   fileRoutesById: FileRoutesById
@@ -308,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutSettingsIndexRouteImport
       parentRoute: typeof appLayoutRoute
     }
+    '/(app)/_layout/plans/': {
+      id: '/(app)/_layout/plans/'
+      path: '/plans'
+      fullPath: '/plans/'
+      preLoaderRoute: typeof appLayoutPlansIndexRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
     '/(app)/_layout/digest/': {
       id: '/(app)/_layout/digest/'
       path: '/digest'
@@ -322,14 +365,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof appLayoutTradesPositionIdRouteImport
       parentRoute: typeof appLayoutRoute
     }
+    '/(app)/_layout/plans/new': {
+      id: '/(app)/_layout/plans/new'
+      path: '/plans/new'
+      fullPath: '/plans/new'
+      preLoaderRoute: typeof appLayoutPlansNewRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
+    '/(app)/_layout/plans/$planId': {
+      id: '/(app)/_layout/plans/$planId'
+      path: '/plans/$planId'
+      fullPath: '/plans/$planId'
+      preLoaderRoute: typeof appLayoutPlansPlanIdRouteImport
+      parentRoute: typeof appLayoutRoute
+    }
   }
 }
 
 interface appLayoutRouteChildren {
   appLayoutDashboardRoute: typeof appLayoutDashboardRoute
   appLayoutImportRoute: typeof appLayoutImportRoute
+  appLayoutPlansPlanIdRoute: typeof appLayoutPlansPlanIdRoute
+  appLayoutPlansNewRoute: typeof appLayoutPlansNewRoute
   appLayoutTradesPositionIdRoute: typeof appLayoutTradesPositionIdRoute
   appLayoutDigestIndexRoute: typeof appLayoutDigestIndexRoute
+  appLayoutPlansIndexRoute: typeof appLayoutPlansIndexRoute
   appLayoutSettingsIndexRoute: typeof appLayoutSettingsIndexRoute
   appLayoutTradesIndexRoute: typeof appLayoutTradesIndexRoute
 }
@@ -337,8 +397,11 @@ interface appLayoutRouteChildren {
 const appLayoutRouteChildren: appLayoutRouteChildren = {
   appLayoutDashboardRoute: appLayoutDashboardRoute,
   appLayoutImportRoute: appLayoutImportRoute,
+  appLayoutPlansPlanIdRoute: appLayoutPlansPlanIdRoute,
+  appLayoutPlansNewRoute: appLayoutPlansNewRoute,
   appLayoutTradesPositionIdRoute: appLayoutTradesPositionIdRoute,
   appLayoutDigestIndexRoute: appLayoutDigestIndexRoute,
+  appLayoutPlansIndexRoute: appLayoutPlansIndexRoute,
   appLayoutSettingsIndexRoute: appLayoutSettingsIndexRoute,
   appLayoutTradesIndexRoute: appLayoutTradesIndexRoute,
 }

@@ -6,6 +6,7 @@ type NavItem = { label: string; to: string }
 const NAV: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Trades', to: '/trades' },
+  { label: 'Plans', to: '/plans' },
   { label: 'Digest', to: '/digest' },
   { label: 'Import', to: '/import' },
 ]
