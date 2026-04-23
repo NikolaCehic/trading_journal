@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { getTradeList, type TradeListRow } from '~/server/trades'
 import { listTags, applyPositionTag } from '~/server/journal'
@@ -260,6 +260,8 @@ function TradesPage() {
   const [pnlFilter, setPnlFilter] = useState<PnlFilter>('all')
   const [selected, setSelected] = useState<string[]>([])
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [highlightedIdx, setHighlightedIdx] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const filtersActive =
     (instr !== 'all' ? 1 : 0) + (side !== 'all' ? 1 : 0) + (pnlFilter !== 'all' ? 1 : 0) + (sym ? 1 : 0) > 0
@@ -293,6 +295,68 @@ function TradesPage() {
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.includes(r.id))
   const toggleAll = () => setSelected(allSelected ? [] : rows.map((r) => r.id))
+
+  // ── keyboard nav ────────────────────────────────────────────────────────
+
+  // Reset highlight when filtered result set changes
+  useEffect(() => {
+    setHighlightedIdx(0)
+  }, [data?.rows.length])
+
+  // Scroll highlighted row into view
+  useEffect(() => {
+    document.querySelector('tr[data-hl="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [highlightedIdx])
+
+  // Key bindings
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+
+      if (e.key === '/') {
+        if (isTyping) return
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+      if (e.key === 'Escape') {
+        setSelected([])
+        if (document.activeElement === searchInputRef.current) {
+          searchInputRef.current?.blur()
+        }
+        return
+      }
+      if (isTyping) return // don't hijack when typing anywhere else
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        if (rows.length === 0) return
+        e.preventDefault()
+        setHighlightedIdx((i) => Math.min(rows.length - 1, i + 1))
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        if (rows.length === 0) return
+        e.preventDefault()
+        setHighlightedIdx((i) => Math.max(0, i - 1))
+      } else if (e.key === 'Enter') {
+        const r = rows[highlightedIdx]
+        if (r) {
+          e.preventDefault()
+          navigate({ to: '/trades/$positionId', params: { positionId: r.id } })
+        }
+      } else if (e.key === 'x' || e.key === ' ') {
+        const r = rows[highlightedIdx]
+        if (r) {
+          e.preventDefault()
+          toggleSel(r.id)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [data?.rows, highlightedIdx, navigate])
 
   // ── render ─────────────────────────────────────────────────────────────
 
@@ -407,13 +471,23 @@ function TradesPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {rows.map((r, idx) => {
               const isSel = selected.includes(r.id)
+              const isHl = idx === highlightedIdx
               const pnlColor = r.realizedPnl >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)'
               return (
                 <tr
                   key={r.id}
+                  data-hl={isHl ? 'true' : undefined}
                   className={isSel ? 'is-selected' : ''}
+                  style={
+                    isHl
+                      ? {
+                          boxShadow: 'inset 3px 0 0 var(--accent)',
+                          background: 'var(--bg-hover)',
+                        }
+                      : undefined
+                  }
                   onClick={() =>
                     navigate({ to: '/trades/$positionId', params: { positionId: r.id } })
                   }
@@ -516,6 +590,18 @@ function TradesPage() {
           >
             {data?.rows.length ?? 0} of {data?.total ?? 0} closed positions
           </div>
+          {rows.length > 0 && (
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--fg-faint)',
+                fontFamily: 'var(--font-mono)',
+                marginTop: 2,
+              }}
+            >
+              / search · j/k navigate · Enter open · Space select · Esc clear
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="tj-btn tj-btn-sm">
@@ -557,6 +643,7 @@ function TradesPage() {
             <Icon name="search" size={13} />
           </div>
           <input
+            ref={searchInputRef}
             className="tj-input"
             style={{ paddingLeft: 30 }}
             placeholder="Symbol..."
