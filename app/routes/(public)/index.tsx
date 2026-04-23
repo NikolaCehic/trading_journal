@@ -203,7 +203,7 @@ function LandingPage() {
       body: 'Up to 100 trades in history, CSV imports, 11 detectors, weekly digest.',
       cta: 'Start free',
       primary: false,
-      items: ['Binance + Hyperliquid imports', '11 behavioral detectors', 'Trade notes + tags', 'Weekly digest'],
+      items: ['Binance + Hyperliquid + Bybit + OKX imports', '11 behavioral detectors', 'Trade notes + tags', 'Weekly digest'],
     },
     {
       name: 'Pro',
@@ -221,7 +221,7 @@ function LandingPage() {
     ['Does this connect to my exchange account?', 'No. Read-only. CSV exports from Binance and a public wallet address for Hyperliquid. No API keys, no wallet connect, no trading permissions. We literally cannot move your money.'],
     ['Is my trade data private?', 'Yes. Your fills are scoped to your account, encrypted at rest, never sold, never used to train shared models. Delete everything in one click.'],
     ['Are the detectors accurate?', "The detectors are deterministic — same inputs, same output. They produce false positives; that's why every finding links to the trades. You can disagree with a finding. The data is still there."],
-    ['Why only Binance and Hyperliquid?', 'We picked the two venues our beta users actually use. Bybit and OKX are on the roadmap. Ask us if you need something specific.'],
+    ['Which exchanges are supported?', 'Binance, Hyperliquid, Bybit, and OKX — via CSV exports and (for Hyperliquid) public wallet addresses. No API keys, no wallet connect.'],
     ['Can I export everything?', 'Yes. Positions, notes, tags, findings — all exportable as CSV or JSON, anytime.'],
     ['Do you coach stocks or forex?', 'Not yet, not yet.'],
   ]
@@ -251,7 +251,7 @@ function LandingPage() {
           <span style={{ color: 'var(--fg-muted)' }}>that talks back.</span>
         </h1>
         <p style={{ fontSize: 17, color: 'var(--fg-muted)', maxWidth: 620, marginTop: 28, lineHeight: 1.55 }}>
-          Import your Binance and Hyperliquid trades. We merge fills into positions, run 11 behavioral detectors over your history, and surface the patterns you&apos;d miss. Direct, honest, no emoji.
+          Import your Binance, Hyperliquid, Bybit, or OKX trades. We merge fills into positions, run 11 behavioral detectors over your history, and surface the patterns you&apos;d miss. Direct, honest, no emoji.
         </p>
         <div style={{ display: 'flex', gap: 10, marginTop: 32, alignItems: 'center' }}>
           <button type="button" className="tj-btn tj-btn-primary" style={{ height: 40, padding: '0 18px', fontSize: 14 }} onClick={handleGoogle}>
@@ -267,7 +267,7 @@ function LandingPage() {
         <div style={{ display: 'flex', gap: 32, marginTop: 48, flexWrap: 'wrap' }}>
           {[
             ['11', 'behavioral detectors'],
-            ['2', 'exchanges · Binance, Hyperliquid'],
+            ['4', 'exchanges · Binance, Hyperliquid, Bybit, OKX'],
             ['0', 'keys or signatures needed'],
             ['<5s', 'from CSV to first finding'],
           ].map(([n, l]) => (

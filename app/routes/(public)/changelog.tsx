@@ -14,6 +14,19 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.7',
+    date: '2026-04-27',
+    title: 'Ingestion expansion + notification prefs',
+    shipped: [
+      'Bybit CSV import (spot + perp with Open/Close direction handling)',
+      'OKX CSV import (BTC-USDT-SWAP → BTCUSDT normalization, signed-fee handling)',
+      '/settings page with Account + Digest toggle + Export all data',
+      'Unsubscribe link in every digest email (HMAC-signed single-click flow)',
+      '"Send this to me now" button on /digest preview',
+      'Scheduler now skips users with digestEnabled=false',
+    ],
+  },
+  {
     version: 'v0.6',
     date: '2026-04-26',
     title: 'Polish pass',

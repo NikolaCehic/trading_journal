@@ -60,7 +60,11 @@
       "Bash(kill 48650)",
       "Bash(lsof -iTCP -sTCP:LISTEN -nP)",
       "Bash(pnpm install *)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(grep -rn 'href=`/' /Users/nikolacehic/Desktop/trade_journal/src /Users/nikolacehic/Desktop/trade_journal/app)",
+      "Bash(grep -v 'href=`http')",
+      "Bash(grep -v 'href=`/api')",
+      "Bash(grep -rn \"sql\\\\`\" /Users/nikolacehic/Desktop/trade_journal/src/db/schema/ --include=\"*.ts\")"
     ]
   }
 }

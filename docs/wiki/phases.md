@@ -320,3 +320,43 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Tooltip when Filter chips cross 3+ active** — visual busy-ness is noticeable. Nice-to-have.
 
 ---
+
+## Phase 7 — Ingestion Expansion + Notification Prefs · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-27-phase-7-ingestion-prefs.md`
+
+**Shipped** (6 task commits from `fa8c8e0` through `db4ccce`)
+
+- **Bybit CSV adapter** — handles both "Closed P&L / Trade History" (perp) and spot CSV exports. Perp `Direction` (`Open Long` / `Close Long` / `Open Short` / `Close Short`) maps to `side: buy|sell` with `normalizerHint.dir` preserved so the merger uses HL-style lifecycle logic. `stripCommas()` helper handles thousands-separator in prices/fees. Fee = `Trading Fee + Exec Fee` summed. Spot `externalId` is a deterministic hash over time+pair+side+qty (Bybit spot export lacks a trade-ID column). 11 tests. Fixtures `fixtures/bybit-csv-{perp,spot}-sample.csv`.
+- **OKX CSV adapter** — single-variant detection; spot vs perp distinguished by symbol format (`BTC-USDT-SWAP` → perp, `BTC-USDT` → spot). Symbol canonicalization strips the hyphens and `-SWAP` suffix. Fees are ABS'd (OKX reports them as negative in some exports). `normalizerHint.direction` captured for perp. 13 tests. Fixture `fixtures/okx-csv-sample.csv`.
+- **Dispatch wiring** — `src/server/import.ts` source enum extended to 4 values; adapter construction switches on source; `/import` page adds Bybit + OKX chip toggles with format-specific drop-zone hints. `ExchangeKind` / `exchange_kind` enum extended with `'bybit' | 'okx'`. Migration `drizzle/0009_exchange_kind_bybit_okx.sql` adds the enum values.
+- **Settings page `/settings`** — three cards: Account (email + tz readouts), Digest (enable/disable toggle), Export (download full JSON bundle). `setDigestEnabled` + `exportAllData` server fns. `user.digestEnabled boolean not null default true` column (migration `drizzle/0010_lowly_fixer.sql`). TopBar adds a gear icon linking to `/settings` between nav pills and avatar. Scheduler in `src/jobs/narrator.ts` now filters `.where(and(isDemo=false, digestEnabled=true))`.
+- **Unsubscribe token flow** — HMAC-SHA256 over `userId` using `BETTER_AUTH_SECRET` as key; format `<userId>.<base64urlSig>`. Timing-safe verify. Every digest email footer now renders `Unsubscribe: <signedUrl>`. `/api/unsubscribe?t=...` verifies, flips `digestEnabled=false`, 302-redirects to `/unsubscribed` confirmation page (public route, no auth). 5 tests for sign/verify including tampered-signature + cross-user-forgery cases.
+- **"Send this to me now"** — `sendDigestNow` server fn in `src/server/digestPreview.ts`: finds-or-composes the current-week `digest_run`, then enqueues `digest/send`. Reuses the existing `sendDigestFn` Inngest pipeline so log-only mode (no Resend key) still works. Button on `/digest` disabled when narrative fell back to the deterministic template (`data.failed`). Toast on success/error. Demo users blocked server-side via `assertNotDemo`.
+
+**Test state after Phase 7:** 193 passing / 5 skipped / 0 failing. Typecheck clean.
+
+**Key design decisions / gotchas**
+- **`exchange_kind` Postgres enum** required `ALTER TYPE ... ADD VALUE 'bybit'` / `'okx'` via migration. Drizzle-kit generates this correctly; user must push before imports work.
+- **Bybit spot trade IDs** aren't in the CSV export, so we synthesize a deterministic hash (`btoa(time|pair|side|qty)`) as the `externalId`. Two imports of the same file = same IDs = idempotent. If Bybit changes their export to include trade IDs, we'll migrate.
+- **OKX fee sign** — the `Trading Fee` column can be negative (representing the fee *cost* as subtracted from proceeds). We `Math.abs()` for storage since the fee field semantics everywhere else are "cost paid."
+- **Perp `normalizerHint.dir`** on Bybit mirrors what the HL adapter sets — the merger already knows how to consume `dir` values like `Open Long` / `Close Short` to compute position lifecycle. Keeping the same key means zero merger changes.
+- **Settings page** reads state from `useSession().data.user` rather than a dedicated query. Better Auth's `additionalFields: { digestEnabled, timezone, isDemo }` config exposes them via the session. Toggle mutations invalidate session indirectly via a page-level revalidation (or let the user refresh — minor UX gap worth fixing in a follow-up).
+- **`exportAllData`** uses `JsonValue` casts on JSONB fields (`normalizerHint`, `evidence`, `errorDetail`) to satisfy TanStack Start's `ValidateSerializableMapped` serialization checker (same pattern used in Phase 3 for `DashboardBundle`).
+- **`sendDigestNow` + unique `(userId, isoWeek)`** — server fn checks for an existing row first; updates instead of inserts if found. Avoids violating the unique constraint when the scheduler ran earlier and user clicks "Send me now" after.
+- **Unsubscribe is single-click** — no double-opt-in, no preferences redirect. Mailbox-friendly. The user can always turn it back on from `/settings`.
+- **No new npm deps across all 6 tasks.** The project ships 4 exchanges, a full settings surface, and unsubscribe/email-send controls without a single new dependency.
+
+**Deferred from Phase 7**
+- **"Export my data" button deletes + confirms** — currently exports only. Account-deletion flow is a separate surface.
+- **More granular digest preferences** — frequency (weekly vs biweekly), topic muting (e.g. "skip the biggest-win section"), quiet hours. Out of MVP.
+- **Email preview in Settings** — from `/settings`, show a link that hits `/digest` preview. Minor UX polish.
+- **Bybit "Closed P&L" format with Realized Profit column** — some Bybit exports include a separate Realized Profit column we don't currently consume. We accept the simpler "Trade History" variant. Research needed.
+- **OKX fee-currency auto-conversion** — if fees are denominated in `BTC` for a BTC-USDT trade, we store the fee in BTC units; the derivation engine treats all fees as USD-equivalent for display. Small skew on spot-in-base-asset fees. Defer.
+- **Live sync via exchange read-only API keys** — explicitly NOT this phase. CSV is the privacy-first path.
+- **Stop-loss / planned-risk capture** — still deferred (needs a pre-trade planning surface).
+- **Custom user-defined detectors** — Phase 8.
+- **Real market-data candles** — Phase 8+.
+- **Playwright E2E** — own setup phase.
+
+---
