@@ -10,6 +10,7 @@ import { Icon } from '~/components/tj/Icon'
 import { getTradeDetail, type TradeDetailBundle } from '~/server/trades'
 import { downloadFile } from '~/lib/csv'
 import { upsertTradeNote, applyPositionTag, removePositionTag, createTag } from '~/server/journal'
+import { linkPositionToPlan, unlinkPositionFromPlan } from '~/server/plans'
 import { getTradeCoach } from '~/server/coach'
 import { CoachNarrative } from '~/components/trades/CoachNarrative'
 
@@ -79,7 +80,7 @@ function TradeDetailPage() {
   return (
     <div className="tj-main">
       <Breadcrumb bundle={bundle} />
-      <PositionHeader bundle={bundle} />
+      <PositionHeader bundle={bundle} positionId={positionId} />
       <MetricChipsRow bundle={bundle} />
       <TabBar tab={tab} setTab={setTab} findingCount={bundle.findings.length} />
       <TabContent tab={tab} bundle={bundle} positionId={positionId} />
@@ -151,9 +152,97 @@ function Breadcrumb({ bundle }: { bundle: TradeDetailBundle }) {
   )
 }
 
+// ── Plan Chip ─────────────────────────────────────────────────
+
+function PlanChip({
+  bundle, positionId,
+}: {
+  bundle: TradeDetailBundle
+  positionId: string
+}) {
+  const qc = useQueryClient()
+  const [picking, setPicking] = useState(false)
+
+  const link = useMutation({
+    mutationFn: (planId: string) => linkPositionToPlan({ data: { positionId, planId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] })
+      setPicking(false)
+      toast.success('Linked to plan')
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+  const unlink = useMutation({
+    mutationFn: () => unlinkPositionFromPlan({ data: { positionId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] })
+      toast.success('Unlinked from plan')
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+
+  if (bundle.linkedPlan) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Link to="/plans/$planId" params={{ planId: bundle.linkedPlan.id }}
+          className="tj-chip tj-chip-accent" style={{ cursor: 'pointer', textDecoration: 'none' }}>
+          Plan linked · view
+        </Link>
+        <button type="button" className="tj-btn tj-btn-ghost tj-btn-sm" onClick={() => unlink.mutate()}>
+          Unlink
+        </button>
+      </div>
+    )
+  }
+
+  if (picking) {
+    if (bundle.availablePlans.length === 0) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--fg-subtle)' }}>
+          <span>No matching plans for {bundle.position.symbol} {bundle.position.side}.</span>
+          <Link to="/plans/new" search={{ symbol: bundle.position.symbol, side: bundle.position.side }}
+            className="tj-btn tj-btn-sm" style={{ textDecoration: 'none' }}>
+            <Icon name="plus" size={11} /> New plan
+          </Link>
+          <button type="button" className="tj-btn tj-btn-ghost tj-btn-sm" onClick={() => setPicking(false)}>Cancel</button>
+        </div>
+      )
+    }
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <select
+          className="tj-input"
+          style={{ width: 'auto', paddingRight: 28 }}
+          onChange={(e) => { if (e.target.value) link.mutate(e.target.value) }}
+          defaultValue=""
+          disabled={link.isPending}
+        >
+          <option value="" disabled>Choose a plan…</option>
+          {bundle.availablePlans.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.symbol} {p.intendedSide} · {new Date(p.createdAt).toISOString().slice(0, 10)}
+            </option>
+          ))}
+        </select>
+        <Link to="/plans/new" search={{ symbol: bundle.position.symbol, side: bundle.position.side }}
+          className="tj-btn tj-btn-sm" style={{ textDecoration: 'none' }}>
+          <Icon name="plus" size={11} /> New
+        </Link>
+        <button type="button" className="tj-btn tj-btn-ghost tj-btn-sm" onClick={() => setPicking(false)}>Cancel</button>
+      </div>
+    )
+  }
+
+  return (
+    <button type="button" className="tj-btn tj-btn-sm" onClick={() => setPicking(true)}>
+      <Icon name="file" size={11} /> Link to plan
+    </button>
+  )
+}
+
 // ── Position Header ──────────────────────────────────────────
 
-function PositionHeader({ bundle }: { bundle: TradeDetailBundle }) {
+function PositionHeader({ bundle, positionId }: { bundle: TradeDetailBundle; positionId: string }) {
   const p = bundle.position
   const openedAt = new Date(p.openedAt)
   const closedAt = p.closedAt ? new Date(p.closedAt) : null
@@ -212,6 +301,9 @@ function PositionHeader({ bundle }: { bundle: TradeDetailBundle }) {
       </div>
 
       <div style={{ flex: '0 0 auto', minWidth: 200, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', paddingLeft: 24, borderLeft: '1px solid var(--border)' }}>
+        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+          <PlanChip bundle={bundle} positionId={positionId} />
+        </div>
         <div style={{ fontSize: 10, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Net P&amp;L</div>
         <div className={`tj-num ${pnlClass}`} style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>
           {pnlSign}{fmtUSD(Math.abs(p.realizedPnl))}

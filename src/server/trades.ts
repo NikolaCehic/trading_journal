@@ -1,12 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { and, desc, eq, gte, inArray, lte, ilike, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, lte, ilike, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '~/auth/server'
 import { db } from '~/db/client'
 import { position, positionFill, finding } from '~/db/schema/derivation'
 import { fill as fillTable } from '~/db/schema/canonical'
-import { positionTag, tradeNote, positionReflection, setupTag, mistakeTag } from '~/db/schema/journal'
+import { positionTag, tradeNote, positionReflection, setupTag, mistakeTag, tradePlan } from '~/db/schema/journal'
 import { DERIVATION_VERSION } from '~/derivation/version'
 
 const listInput = z.object({
@@ -133,6 +133,21 @@ export type TradeDetailBundle = {
     setup: Array<{ id: string; label: string; color: string | null }>
     mistake: Array<{ id: string; label: string; color: string | null }>
   }
+  linkedPlan: {
+    id: string
+    intendedSide: 'long' | 'short'
+    entryPrice: number | null
+    stopPrice: number | null
+    targetPrice: number | null
+    plannedSize: number | null
+    rationale: string | null
+  } | null
+  availablePlans: Array<{
+    id: string
+    symbol: string
+    intendedSide: 'long' | 'short'
+    createdAt: Date
+  }>
 }
 
 export const getTradeDetail = createServerFn({ method: 'GET' })
@@ -169,6 +184,44 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
     )
     const setups = await db.select().from(setupTag).where(eq(setupTag.userId, userId))
     const mistakes = await db.select().from(mistakeTag).where(eq(mistakeTag.userId, userId))
+
+    // Linked plan
+    let linkedPlan: TradeDetailBundle['linkedPlan'] = null
+    if (pos.planId) {
+      const [plan] = await db.select().from(tradePlan)
+        .where(and(eq(tradePlan.id, pos.planId), eq(tradePlan.userId, userId))).limit(1)
+      if (plan) {
+        linkedPlan = {
+          id: plan.id,
+          intendedSide: plan.intendedSide,
+          entryPrice: plan.entryPrice ? Number(plan.entryPrice) : null,
+          stopPrice: plan.stopPrice ? Number(plan.stopPrice) : null,
+          targetPrice: plan.targetPrice ? Number(plan.targetPrice) : null,
+          plannedSize: plan.plannedSize ? Number(plan.plannedSize) : null,
+          rationale: plan.rationale,
+        }
+      }
+    }
+
+    // Available plans (unarchived, matching symbol + side) — cap at 10
+    const availableRows = await db.select({
+      id: tradePlan.id,
+      symbol: tradePlan.symbol,
+      intendedSide: tradePlan.intendedSide,
+      createdAt: tradePlan.createdAt,
+    }).from(tradePlan)
+      .where(and(
+        eq(tradePlan.userId, userId),
+        eq(tradePlan.symbol, pos.symbol),
+        eq(tradePlan.intendedSide, pos.side),
+        isNull(tradePlan.archivedAt),
+      ))
+      .orderBy(desc(tradePlan.createdAt))
+      .limit(10)
+
+    const availablePlans = availableRows.map(r => ({
+      id: r.id, symbol: r.symbol, intendedSide: r.intendedSide, createdAt: r.createdAt,
+    }))
 
     return {
       position: {
@@ -216,6 +269,8 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
         setup:   setups.filter(s => !s.isArchived).map(s => ({ id: s.id, label: s.label, color: s.color })),
         mistake: mistakes.filter(m => !m.isArchived).map(m => ({ id: m.id, label: m.label, color: m.color })),
       },
+      linkedPlan,
+      availablePlans,
     }
   })
 
