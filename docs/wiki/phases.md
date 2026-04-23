@@ -224,3 +224,49 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - The Phase 0 smoke tests and stale `KpiTile.test.tsx` still fail and still aren't touched — Phase 6 polish
 
 ---
+
+## Phase 5 — Real-Data Wiring + Demo Mode · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-25-phase-5-real-data-demo.md`
+
+**Shipped** (7 task commits from `b85899e` through `2108184`)
+
+- **Dashboard** — `EquityCurve`/`AssetBreakdown`/`FindingsSidebar`/`Heatmap` now accept real data props. Dashboard route uses `useQuery(['dashboard', filters], () => getDashboardBundle({ data: serializeFilters(filters) }))`. Empty state (`bundle.meta.totalFillCount === 0`) replaces KPIs + charts with a single "Import your first trades" CTA. `EquityCurve` keeps backward-compat for the landing page (no `points` prop → falls back to mock `MockEquityCurve`). Phase 4 adopt-rule flow in `FindingsSidebar` preserved.
+- **Trades list** — `app/routes/(app)/_layout/trades/index.tsx` rewritten. Uses `useQuery(['tradeList', filters], () => getTradeList(...))`. Empty states: `total=0` unfiltered → "Import your first trades"; filters too narrow → "No trades match these filters". Bulk-tag dialog inline (plain divs + fixed positioning), fetches `listTags()`, calls `applyPositionTag` per selected tag with toast confirmation. Keyboard nav deferred to Phase 6. `mockTrades.ts` deleted.
+- **Trade detail** — `app/routes/(app)/_layout/trades/$positionId.tsx` rewritten. `useQuery(['tradeDetail', positionId], () => getTradeDetail({ data: { positionId } }))`. Notes tab: real autosave via `upsertTradeNote` with 800ms debounce + `latestSave` ref pattern (avoids stale closures). Tags tab: real apply/remove/create via `applyPositionTag`/`removePositionTag`/`createTag` with optimistic invalidation. Findings tab: real `bundle.findings` rendered through `react-markdown` + `rehype-sanitize`. Coach tab (Phase 4) preserved untouched. CandleChart simplified to fills-only SVG — market-data candles deferred.
+- **Empty-state polish** — Trade detail distinguishes "not found" (specific card + Link back) from generic errors. Digest preview adds a third state: `data.narrative` with all sections null → `PreviewNoData` card ("No closed trades this week yet"), short-circuiting before surfacing AI failures as errors.
+- **Demo seed** — `src/server/demoSeed.ts` with `seedDemoUser()` that wipes + recreates the demo user (`demo-user-0001`, email `demo@tradejournal.local`, `isDemo=true`), seeds an `exchangeAccount` + `importRecord` + 24 hand-crafted fixture fills across 12 positions (mixed spot/perp, mixed wins/losses, deliberate revenge-trading cluster + FOMO entries), then runs `runDerivation`. CLI at `scripts/seedDemo.ts` — `pnpm seed:demo`.
+- **`/api/demo` route** — `app/routes/api/demo.tsx` mints a signed Better Auth session cookie (HMAC-SHA-256 via `crypto.subtle`, matching hono's `<token>.<base64sig>` format so Better Auth's `getSignedCookie` validates it). Cookie name: `better-auth.session_token` (`__Secure-` prefix in prod). 7-day expiry. Returns 503 `demo_not_seeded` if the demo user doesn't exist yet.
+- **Read-only guard on writes** — `src/auth/assertNotDemo.ts` exports `DemoReadonlyError` + `assertNotDemo(user)`. Applied to every mutation server fn: `startCsvImport`, `startWalletImport`, `upsertTradeNote`, `applyPositionTag`, `removePositionTag`, `createTag`, `upsertReflection`, `adoptRule`, `archiveRule`. **Not** applied to `getTradeCoach` (intentional — demo users SHOULD be able to use the Coach tab, and its writes are cache-only). `useIsDemo` hook wraps `useSession().data?.user?.isDemo`. `DemoBanner` component renders a 32px amber strip at the top of `RootDocument` when demo session active.
+- **Landing "Try demo" button** — `handleDemo()` POSTs `/api/demo`, redirects to `/dashboard` on success, shows an `alert()` on failure (pre-auth page, no toast provider). Hero button no longer disabled; `PHASE 5` badge removed.
+
+**Test state after Phase 5:** unchanged — no new tests written for Phase 5 tasks (this is a UI-wiring phase; server fn tests from Phase 3 still cover the data path). Pre-existing 3-error `KpiTile.test.tsx` file still not cleaned up.
+
+**Key design decisions / gotchas**
+- The design-mock `EquityCurve` stays callable with no props so the landing page's dashboard screenshot continues to render without data. When real `points` are passed, the chart re-axes to 0-baseline (not 10000-baseline like the mock) and colors by sign of the last cumulative P&L.
+- Dashboard KPIs: "Avg W / Avg L" and "Profit factor" aren't in the KPI-with-delta shape (`DashboardBundle.kpis` only carries realizedPnl / winRate / expectancy / tradeCount / maxDrawdown), so those two tiles compute from `bundle.summary` directly without delta chips. Acceptable — they're derived, not first-class metrics.
+- `AssetBreakdown` passes `instrument='perp'` to `SymbolPill` for every row because `AssetMetricValue` doesn't carry instrumentType. Visual compromise. A follow-up can map symbol → instrument via the first position of that symbol or add a lookup cache.
+- `Heatmap` falls back to `dayOfWeekUtc ?? 0` when missing (real data may be hour-only; design is 7×24). Cells with no match render as empty 22px tiles. Acceptable visual degrade.
+- Notes autosave: the `latestSave` ref pattern is critical. Putting `mutation` in the `useEffect` deps array would reset the debounce timer on every render (since `useMutation` returns a new object each render). Ref-based fresh reference → stable effect dep `[text]`.
+- `applyPositionTag` takes `positionIds: string[]` (batch), so single-position use calls with `[positionId]` — not the prettiest API but it's what exists.
+- Demo seed intentionally produces a **net-negative** portfolio so the detectors fire reliably. A demo showing "+$1,897.48 everything great" doesn't sell the product; a demo showing "you revenge-traded 4x after a big loss, here's the pattern" does.
+- `/api/demo` session-mint replicates Better Auth's `hono.getSignedCookie` signing algorithm (HMAC-SHA-256 over token, base64-url-encoded). Dep-free. The alternative — enabling the email/password provider just for the demo login — would have added a second auth path to reason about. Direct session-insert is cleaner.
+- `DemoBanner` renders in `__root.tsx` above `{children}`, meaning it appears on EVERY page including the landing. That's correct — if someone's in demo mode and navigates to `/`, the banner should still say so.
+- Query fns are NOT guarded by `assertNotDemo` (Dashboard, TradesList, TradeDetail, digest preview, coach). Only writes. Demo users browse everything, just can't save anything.
+
+**Deferred from Phase 5**
+- Restore keyboard navigation (`/`, `j`, `k`, `Enter`, `x`, Space) on trades list — Phase 6 polish
+- Day-of-week axis on heatmap (needs `dayOfWeekMetric` derived table)
+- Symbol/setup-tag/instrument filters wired into KPI + equity-curve + heatmap queries (still only `timeRange` filters today)
+- Export buttons on dashboard + trades list
+- Rich Notes editor (plain textarea + markdown preview today)
+- Instrument mapping on `AssetBreakdown` (all rows currently render `PERP` badge)
+- R-multiple + max-drawdown metrics on trade detail chips (data not in bundle; need a new computed field or detector output)
+- Real market-data candles in fills timeline
+- Bybit / OKX ingestion
+- Custom user-defined detectors
+- Email unsubscribe + preferences UI
+- Per-user timezone capture for digest scheduling
+- Phase-0 smoke test + stale `KpiTile.test.tsx` — still not addressed
+
+---
