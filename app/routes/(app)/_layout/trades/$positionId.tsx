@@ -82,6 +82,7 @@ function TradeDetailPage() {
       <Breadcrumb bundle={bundle} />
       <PositionHeader bundle={bundle} positionId={positionId} />
       <MetricChipsRow bundle={bundle} />
+      <AdherenceChipsRow bundle={bundle} />
       <TabBar tab={tab} setTab={setTab} findingCount={bundle.findings.length} />
       <TabContent tab={tab} bundle={bundle} positionId={positionId} />
       <FillsTimeline bundle={bundle} />
@@ -327,6 +328,116 @@ function PositionHeader({ bundle, positionId }: { bundle: TradeDetailBundle; pos
   )
 }
 
+// ── Plan Adherence Helpers ────────────────────────────────────
+
+function computeAdherence(
+  pos: TradeDetailBundle['position'],
+  plan: NonNullable<TradeDetailBundle['linkedPlan']>,
+) {
+  const entrySlipPct =
+    plan.entryPrice != null
+      ? ((pos.entryAvgPrice - plan.entryPrice) / plan.entryPrice) * 100
+      : null
+
+  const exitSlipPct =
+    plan.targetPrice != null && pos.exitAvgPrice != null
+      ? ((pos.exitAvgPrice - plan.targetPrice) / plan.targetPrice) * 100
+      : null
+
+  const sizeRatio =
+    plan.plannedSize != null && plan.plannedSize > 0
+      ? pos.size / plan.plannedSize
+      : null
+
+  const hitStop =
+    plan.stopPrice != null && pos.exitAvgPrice != null
+      ? pos.side === 'long'
+        ? pos.exitAvgPrice <= plan.stopPrice
+        : pos.exitAvgPrice >= plan.stopPrice
+      : null
+
+  const hitTarget =
+    plan.targetPrice != null && pos.exitAvgPrice != null
+      ? pos.side === 'long'
+        ? pos.exitAvgPrice >= plan.targetPrice
+        : pos.exitAvgPrice <= plan.targetPrice
+      : null
+
+  return { entrySlipPct, exitSlipPct, sizeRatio, hitStop, hitTarget }
+}
+
+function entrySlipColor(pct: number | null, side: 'long' | 'short'): string | undefined {
+  if (pct == null) return undefined
+  const favorable = side === 'long' ? pct < 0 : pct > 0
+  return favorable ? 'var(--pnl-up)' : 'var(--pnl-down)'
+}
+
+function exitSlipColor(pct: number | null, side: 'long' | 'short'): string | undefined {
+  if (pct == null) return undefined
+  // Higher exit price is favorable for long; lower exit price is favorable for short
+  const favorable = side === 'long' ? pct >= 0 : pct <= 0
+  return favorable ? 'var(--pnl-up)' : 'var(--pnl-down)'
+}
+
+function AdherenceChipsRow({ bundle }: { bundle: TradeDetailBundle }) {
+  const plan = bundle.linkedPlan
+  if (!plan) return null
+
+  const p = bundle.position
+  const { entrySlipPct, exitSlipPct, sizeRatio, hitStop, hitTarget } = computeAdherence(p, plan)
+
+  const entrySlipValue = entrySlipPct != null
+    ? (entrySlipPct >= 0 ? '+' : '') + entrySlipPct.toFixed(2) + '%'
+    : '—'
+
+  const exitSlipValue = exitSlipPct != null
+    ? (exitSlipPct >= 0 ? '+' : '') + exitSlipPct.toFixed(2) + '%'
+    : '—'
+
+  const sizeRatioValue = sizeRatio != null ? sizeRatio.toFixed(2) + '×' : '—'
+  const sizeRatioColor: string | undefined =
+    sizeRatio != null && (sizeRatio > 1.2 || sizeRatio < 0.8) ? 'var(--amber)' : undefined
+
+  const hitStopValue = hitStop != null ? (hitStop ? 'Yes' : 'No') : '—'
+  const hitStopColor: string | undefined = hitStop === true ? 'var(--pnl-down)' : undefined
+
+  const hitTargetValue = hitTarget != null ? (hitTarget ? 'Yes' : 'No') : '—'
+  const hitTargetColor: string | undefined = hitTarget === true ? 'var(--pnl-up)' : undefined
+
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      <MetricChip
+        label="Entry slip"
+        value={entrySlipValue}
+        hint={entrySlipPct != null ? 'vs. plan' : undefined}
+        valueColor={entrySlipColor(entrySlipPct, p.side)}
+      />
+      <MetricChip
+        label="Exit slip"
+        value={exitSlipValue}
+        hint={exitSlipPct != null ? 'vs. target' : undefined}
+        valueColor={exitSlipColor(exitSlipPct, p.side)}
+      />
+      <MetricChip
+        label="Size ratio"
+        value={sizeRatioValue}
+        hint={sizeRatio != null ? 'actual / planned' : undefined}
+        valueColor={sizeRatioColor}
+      />
+      <MetricChip
+        label="Hit stop?"
+        value={hitStopValue}
+        valueColor={hitStopColor}
+      />
+      <MetricChip
+        label="Hit target?"
+        value={hitTargetValue}
+        valueColor={hitTargetColor}
+      />
+    </div>
+  )
+}
+
 // ── Metric Chips Row ─────────────────────────────────────────
 
 function MetricChipsRow({ bundle }: { bundle: TradeDetailBundle }) {
@@ -341,18 +452,26 @@ function MetricChipsRow({ bundle }: { bundle: TradeDetailBundle }) {
   const sellCount = fills.length - buyCount
   const fillsHint = `${buyCount} buy · ${sellCount} sell`
 
-  const rMultipleValue = p.rMultiple !== null ? p.rMultiple.toFixed(2) + 'R' : '—'
-  const rMultipleHint = p.rMultiple !== null ? '1R = 1% of entry' : undefined
-  const rMultipleColor = p.rMultiple !== null
-    ? (p.rMultiple >= 0 ? 'var(--pnl-up)' : 'var(--pnl-down)')
-    : undefined
+  const rValue = p.rMultiplePlanned != null
+    ? p.rMultiplePlanned.toFixed(2) + 'R'
+    : p.rMultiple != null
+      ? p.rMultiple.toFixed(2) + 'R'
+      : '—'
+  const rHint = p.rMultiplePlanned != null
+    ? 'vs. planned risk'
+    : p.rMultiple != null
+      ? '1R = 1% of entry'
+      : undefined
+  const rColor = (p.rMultiplePlanned ?? p.rMultiple ?? 0) >= 0
+    ? 'var(--pnl-up)' : 'var(--pnl-down)'
+  const rColorFinal = (p.rMultiplePlanned != null || p.rMultiple != null) ? rColor : undefined
 
   const maxDdValue = p.maxDrawdownPct !== null ? (p.maxDrawdownPct * 100).toFixed(2) + '%' : '—'
   const maxDdHint = p.maxDrawdownPct !== null ? 'mid-trade' : undefined
 
   return (
     <div style={{ display: 'flex', gap: 10 }}>
-      <MetricChip label="R multiple" value={rMultipleValue} hint={rMultipleHint} valueColor={rMultipleColor} />
+      <MetricChip label="R multiple" value={rValue} hint={rHint} valueColor={rColorFinal} />
       <MetricChip label="Max drawdown" value={maxDdValue} hint={maxDdHint} valueColor={p.maxDrawdownPct !== null ? 'var(--pnl-down)' : undefined} />
       <MetricChip label="Fees" value={fmtUSD(p.totalFees)} hint={feesHint} />
       {p.instrumentType === 'perp' && (

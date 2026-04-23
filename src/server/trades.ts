@@ -109,6 +109,7 @@ export type TradeDetailBundle = {
     realizedPnl: number; totalFees: number; fundingPnl: number
     wasLiquidated: boolean; needsReview: boolean
     rMultiple: number | null
+    rMultiplePlanned: number | null
     maxDrawdownPct: number | null
     openedAt: Date; closedAt: Date | null
     derivationVersion: number
@@ -203,6 +204,18 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
       }
     }
 
+    // Planned R-multiple
+    let rMultiplePlanned: number | null = null
+    if (linkedPlan?.entryPrice != null && linkedPlan.stopPrice != null) {
+      const entry = linkedPlan.entryPrice
+      const stop = linkedPlan.stopPrice
+      const size = Number(pos.size)
+      const risk = Math.abs(entry - stop) * size
+      if (risk > 0) {
+        rMultiplePlanned = Number(pos.realizedPnl) / risk
+      }
+    }
+
     // Available plans (unarchived, matching symbol + side) — cap at 10
     const availableRows = await db.select({
       id: tradePlan.id,
@@ -236,6 +249,7 @@ export const getTradeDetail = createServerFn({ method: 'GET' })
         fundingPnl: Number(pos.fundingPnl),
         wasLiquidated: pos.wasLiquidated, needsReview: pos.needsReview,
         rMultiple: pos.rMultiple != null ? Number(pos.rMultiple) : null,
+        rMultiplePlanned,
         maxDrawdownPct: pos.maxDrawdownPct != null ? Number(pos.maxDrawdownPct) : null,
         openedAt: pos.openedAt, closedAt: pos.closedAt,
         derivationVersion: pos.derivationVersion,
