@@ -14,6 +14,18 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: 'v0.11',
+    date: '2026-04-24',
+    title: 'User-defined custom detectors',
+    shipped: [
+      'Declarative predicate language — no code, just conditions (symbol, side, pnl, day-of-week, hasTag, minLossStreak, ...)',
+      '/detectors admin page with guided predicate builder + live match preview',
+      'Custom detectors run alongside the 12 built-ins every derivation; emit findings with detectorId custom:<id>',
+      'AI coach + digest grounding accept custom detector references',
+      'Linked from Settings; toggle, edit, delete freely',
+    ],
+  },
+  {
     version: 'v0.10',
     date: '2026-04-30',
     title: 'Plan automation + CI',

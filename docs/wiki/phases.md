@@ -476,3 +476,40 @@ Triggered after an initial `pnpm dev` boot failure surfaced that the app was on 
 - **Custom user-defined detectors (DSL)** — Phase 11+.
 
 ---
+
+## Phase 11 — User-Defined Custom Detectors · **Shipped**
+
+**Plan:** `docs/superpowers/plans/2026-04-24-phase-11-custom-detectors.md`
+
+**Shipped** (5 task commits from `de2ae08` through `1b9a4cb`)
+
+- **Predicate schema + pure evaluator** — declarative JSON predicate language over closed positions. Vocabulary: `symbol` (eq / in), `instrumentType`, `side`, `dayOfWeekUtc`, `hourOfDayUtc`, `pnl`, `pnlPct`, `holdDurationMins`, `hasTag`, `minLossStreak`. Composition: `all` / `any` / `not`. Recursive zod schema (`z.lazy(...)`) + explicit TypeScript type. `evaluatePredicate(pos, pred, ctx)` is pure — no DB, no side effects. `computeLossStreaks(positions)` walks closed positions sorted by `closedAt` asc and returns a Map of consecutive-loss counts per positionId. 22 unit tests cover every predicate dimension, all three composition operators, `hasTag` by label+id, and loss-streak edge cases.
+- **`user_detector` table + CRUD** — `(id, userId, name, title, severity, predicate, enabled, createdAt, updatedAt)` with a slug-case constraint on `name`. Six server fns: `createCustomDetector`, `listCustomDetectors`, `getCustomDetector`, `updateCustomDetector`, `toggleCustomDetector`, `deleteCustomDetector`. All mutations gated by `assertNotDemo`; reads require only auth. Migration `drizzle/0015_white_black_cat.sql`. 14 tests cover validation + ownership + demo-readonly throws.
+- **Runner integration + `DETECTOR_VERSION = 4`** — `DetectorId = BuiltinDetectorId | \`custom:${string}\``. Runner loads enabled user detectors, resolves position tag labels via `setupTag` / `mistakeTag` joins, computes loss streaks, then evaluates each detector × position with `evaluatePredicate`. Matching positions emit findings with `detectorId: 'custom:<detectorId>'`, `title` from the user's detector, `bodyMarkdown` with a trade summary. Custom findings persist through the same `finding` insert path as built-ins. 5 new runner tests (no detectors, disabled detectors, pnl-matching, hasTag, format verification).
+- **`/detectors` admin UI** — List page with severity chips, per-row enabled toggle, optimistic delete. `/detectors/new` form with predicate builder: pick field → operator → value, add/remove condition rows, toggle `all` vs `any` composition. Live preview counter calls `previewCustomDetector` server fn (debounced 600ms) showing "N of M positions would match." `/detectors/$id` detail + inline edit + enable/disable + delete. Settings page gets a new "Custom detectors" card linking to the admin surface.
+- **Findings surface + AI grounding** — `FindingsSidebar.resolveTitle(f)` returns `f.title` directly for `custom:*` detectorIds (bypassing the DETECTOR_LABELS lookup); built-ins continue to use the friendly-label map. Adopt-rule block is hidden when the top finding is custom (rules were designed around built-ins). AI grounding validator already grounds on `findingId` from `allowedFindingIds`, not on `detectorId` whitelists — custom IDs flow through zod's `z.string().min(1)` cleanly. 4 new grounding tests.
+
+**Test state after Phase 11:** 313 passing / 5 skipped / 0 failing. Typecheck clean.
+
+**Key design decisions / gotchas**
+- **Declarative JSON, not a DSL.** We explicitly avoided a parseable expression language (JS-like eval, JSONata, etc.) in favor of a fixed vocabulary. Zero eval surface, security is easy, and the predicate is serializable + diffable.
+- **Flat composition in the UI, full recursion in the engine.** The backend supports arbitrary nested `all/any/not` trees; the v1 admin form is flat-only (single list of conditions combined with all-or-any). Advanced users can craft nested predicates via API directly if needed; nested UI is a future phase.
+- **`hasTag` matches by label OR id.** User writes "FOMO" in the form; we match against tag `label` when possible, fallback to tag `id` — so mistake-tag starter labels work out of the box without requiring the user to know tag IDs.
+- **`pnlPct` stored as fraction, entered as percent.** Form input is `2.5` (for 2.5%); form-to-predicate conversion divides by 100. Evaluator treats predicate value as fraction vs `realizedPnl / notionalUsd`.
+- **Custom findings use the same `finding` table** — no second table. The detectorId prefix (`custom:`) is the only signal. This keeps queries simple (top findings, digest facts, coach facts) at the cost of one lookup layer (DETECTOR_LABELS map) understanding the prefix.
+- **`computeLossStreaks` is O(n log n)** dominated by the sort. Runs once per derivation; trivially fast.
+- **DetectorId template-literal type** plays nicely with existing enum-centric code because `BuiltinDetectorId | \`custom:${string}\`` is a superset of the old enum — narrowing is the caller's responsibility. No existing code paths broke on the widening.
+- **Bumping `DERIVATION_VERSION` to 4** — users must `pnpm rederive` to populate custom detector findings for existing positions. Idempotent via delete-then-insert scoped to `(userId, version)`.
+- **Ownership check is strict.** `updateCustomDetector`, `getCustomDetector`, etc. all filter by `(id, userId)` in the WHERE clause. Another user's detector id cannot be fetched / edited.
+- **Predicate preview uses actual positions, not a sample.** `previewCustomDetector` loads all user positions at the current DERIVATION_VERSION and runs the evaluator in-process. At ~200-500 positions per user it's sub-200ms. If scale pushes this, we add pagination or sampling.
+
+**Deferred from Phase 11**
+- **Nested `all/any/not` composition in the UI.** Backend supports it; form is flat-only.
+- **Cross-position predicates** (e.g., "5 positions within 1 hour of each other"). Requires a different evaluator model.
+- **Per-detector email notifications / alerts.** v1 surfaces custom findings in the weekly digest and dashboard only.
+- **Sharing detectors** between users / a public "detector library." Privacy-first; out of scope.
+- **Testing predicates against a historical date range** beyond the all-positions preview. Nice-to-have.
+- **Disabling built-in detectors per user.** Currently all 12 built-ins run for every user. User toggles would reduce noise but adds configuration complexity.
+- **Importing detectors from JSON / exporting to JSON.** Power-user feature, defer.
+
+---

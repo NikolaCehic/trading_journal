@@ -243,7 +243,7 @@ function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <TJBadge tone="accent">v0.3 · early access</TJBadge>
           <span style={{ fontSize: 11, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}>
-            Updated Apr 22 — 12 detectors live
+            Updated Apr 24 — 12 built-in detectors + custom
           </span>
         </div>
         <h1 style={{ fontSize: 64, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1.02, margin: 0, color: 'var(--fg)', maxWidth: 900 }}>
@@ -251,7 +251,7 @@ function LandingPage() {
           <span style={{ color: 'var(--fg-muted)' }}>that talks back.</span>
         </h1>
         <p style={{ fontSize: 17, color: 'var(--fg-muted)', maxWidth: 620, marginTop: 28, lineHeight: 1.55 }}>
-          Import your Binance, Hyperliquid, Bybit, or OKX trades. We merge fills into positions, run 12 behavioral detectors over your history, and surface the patterns you&apos;d miss. Direct, honest, no emoji.
+          Import your Binance, Hyperliquid, Bybit, or OKX trades. We merge fills into positions, run 12 built-in behavioral detectors over your history (plus any you write yourself), and surface the patterns you&apos;d miss. Direct, honest, no emoji.
         </p>
         <div style={{ display: 'flex', gap: 10, marginTop: 32, alignItems: 'center' }}>
           <button type="button" className="tj-btn tj-btn-primary" style={{ height: 40, padding: '0 18px', fontSize: 14 }} onClick={handleGoogle}>
