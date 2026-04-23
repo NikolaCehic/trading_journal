@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+      exclude: ['tests/e2e/**'],
       environmentMatchGlobs: [
         ['tests/unit/components/**/*.test.tsx', 'jsdom'],
         ['tests/unit/components/**/*.tsx', 'jsdom'],

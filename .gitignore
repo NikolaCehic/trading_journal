@@ -23,3 +23,7 @@ dist
 
 # logs
 *.log
+
+# playwright
+/playwright-report/
+/test-results/

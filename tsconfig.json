@@ -22,5 +22,5 @@
       "~app/*": ["./app/*"]
     }
   },
-  "include": ["app", "src", "tests", "vite.config.ts", "drizzle.config.ts", "vitest.config.ts"]
+  "include": ["app", "src", "tests", "vite.config.ts", "drizzle.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
