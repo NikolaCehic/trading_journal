@@ -13,6 +13,7 @@ import { Route as publicIndexRouteImport } from './routes/(public)/index'
 import { Route as ApiInngestRouteImport } from './routes/api/inngest'
 import { Route as ApiDemoRouteImport } from './routes/api/demo'
 import { Route as publicLoginRouteImport } from './routes/(public)/login'
+import { Route as publicChangelogRouteImport } from './routes/(public)/changelog'
 import { Route as appLayoutRouteImport } from './routes/(app)/_layout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as appLayoutImportRouteImport } from './routes/(app)/_layout/import'
@@ -39,6 +40,11 @@ const ApiDemoRoute = ApiDemoRouteImport.update({
 const publicLoginRoute = publicLoginRouteImport.update({
   id: '/(public)/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const publicChangelogRoute = publicChangelogRouteImport.update({
+  id: '/(public)/changelog',
+  path: '/changelog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const appLayoutRoute = appLayoutRouteImport.update({
@@ -78,6 +84,7 @@ const appLayoutTradesPositionIdRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/changelog': typeof publicChangelogRoute
   '/login': typeof publicLoginRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/trades/': typeof appLayoutTradesIndexRoute
 }
 export interface FileRoutesByTo {
+  '/changelog': typeof publicChangelogRoute
   '/login': typeof publicLoginRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
@@ -104,6 +112,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(app)/_layout': typeof appLayoutRouteWithChildren
+  '/(public)/changelog': typeof publicChangelogRoute
   '/(public)/login': typeof publicLoginRoute
   '/api/demo': typeof ApiDemoRoute
   '/api/inngest': typeof ApiInngestRoute
@@ -118,6 +127,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/changelog'
     | '/login'
     | '/api/demo'
     | '/api/inngest'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/trades/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/changelog'
     | '/login'
     | '/api/demo'
     | '/api/inngest'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/(app)/_layout'
+    | '/(public)/changelog'
     | '/(public)/login'
     | '/api/demo'
     | '/api/inngest'
@@ -157,6 +169,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   appLayoutRoute: typeof appLayoutRouteWithChildren
+  publicChangelogRoute: typeof publicChangelogRoute
   publicLoginRoute: typeof publicLoginRoute
   ApiDemoRoute: typeof ApiDemoRoute
   ApiInngestRoute: typeof ApiInngestRoute
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof publicLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(public)/changelog': {
+      id: '/(public)/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof publicChangelogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(app)/_layout': {
@@ -268,6 +288,7 @@ const appLayoutRouteWithChildren = appLayoutRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   appLayoutRoute: appLayoutRouteWithChildren,
+  publicChangelogRoute: publicChangelogRoute,
   publicLoginRoute: publicLoginRoute,
   ApiDemoRoute: ApiDemoRoute,
   ApiInngestRoute: ApiInngestRoute,

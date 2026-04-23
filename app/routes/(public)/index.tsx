@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMemo, type ReactNode, type CSSProperties } from 'react'
 import { Icon, Icons, type IconName } from '~/components/tj/Icon'
 import { SeverityDot, SymbolPill } from '~/components/tj/primitives'
@@ -56,9 +56,10 @@ function LandingNav() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
         <Wordmark />
         <nav style={{ display: 'flex', gap: 4 }}>
-          {['Product', 'Detectors', 'Pricing', 'Changelog'].map(l => (
-            <a key={l} style={{ padding: '6px 10px', fontSize: 13, color: 'var(--fg-muted)', textDecoration: 'none', borderRadius: 6, cursor: 'pointer' }}>{l}</a>
-          ))}
+          <a href="#product" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--fg-muted)', textDecoration: 'none', borderRadius: 6, cursor: 'pointer' }}>Product</a>
+          <a href="#detectors" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--fg-muted)', textDecoration: 'none', borderRadius: 6, cursor: 'pointer' }}>Detectors</a>
+          <a href="#pricing" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--fg-muted)', textDecoration: 'none', borderRadius: 6, cursor: 'pointer' }}>Pricing</a>
+          <Link to="/changelog" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--fg-muted)', textDecoration: 'none', borderRadius: 6, cursor: 'pointer' }}>Changelog</Link>
         </nav>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -314,7 +315,7 @@ function LandingPage() {
       </section>
 
       {/* SECTION: Three promises */}
-      <section style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+      <section id="product" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-base)' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '80px 40px' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             / What it does
@@ -413,7 +414,7 @@ function LandingPage() {
       </section>
 
       {/* SECTION: Detectors */}
-      <section style={{ borderTop: '1px solid var(--border)' }}>
+      <section id="detectors" style={{ borderTop: '1px solid var(--border)' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '80px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 40 }}>
             <div>
@@ -528,7 +529,7 @@ function LandingPage() {
               Every Sunday at 22:00 local. Biggest win, biggest mistake, top finding, one thing to try. Read it in under two minutes or archive it and pretend you did.
             </p>
             <div style={{ marginTop: 24, display: 'flex', gap: 10 }}>
-              <button type="button" className="tj-btn">View sample digest <Icon name="arrowRight" size={12} /></button>
+              <Link to="/digest" className="tj-btn" style={{ textDecoration: 'none' }}>View sample digest <Icon name="arrowRight" size={12} /></Link>
             </div>
           </div>
           <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 'var(--r-card)', overflow: 'hidden' }}>
@@ -601,7 +602,7 @@ function LandingPage() {
       </section>
 
       {/* SECTION: Pricing */}
-      <section style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+      <section id="pricing" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: '80px 40px' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
             / Pricing
@@ -691,9 +692,9 @@ function LandingPage() {
             <button type="button" className="tj-btn tj-btn-primary" style={{ height: 40, padding: '0 18px', fontSize: 14 }} onClick={handleGoogle}>
               Sign in with Google <Icon name="arrowRight" size={13} />
             </button>
-            <button type="button" className="tj-btn" style={{ height: 40, padding: '0 18px', fontSize: 14 }}>
+            <Link to="/changelog" className="tj-btn" style={{ height: 40, padding: '0 18px', fontSize: 14, textDecoration: 'none' }}>
               Read the changelog
-            </button>
+            </Link>
           </div>
           <div style={{ marginTop: 14, fontSize: 11, color: 'var(--fg-faint)', fontFamily: 'var(--font-mono)' }}>
             Free during beta · no card · delete in one click
@@ -711,9 +712,10 @@ function LandingPage() {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 20, fontSize: 12, color: 'var(--fg-muted)' }}>
-            {['Changelog', 'Privacy', 'Terms', 'Contact'].map((l) => (
-              <a key={l} style={{ color: 'var(--fg-muted)', textDecoration: 'none', cursor: 'pointer' }}>{l}</a>
-            ))}
+            <Link to="/changelog" style={{ color: 'var(--fg-muted)', textDecoration: 'none', cursor: 'pointer' }}>Changelog</Link>
+            <a style={{ color: 'var(--fg-muted)', textDecoration: 'none', cursor: 'pointer' }}>Privacy</a>
+            <a style={{ color: 'var(--fg-muted)', textDecoration: 'none', cursor: 'pointer' }}>Terms</a>
+            <a style={{ color: 'var(--fg-muted)', textDecoration: 'none', cursor: 'pointer' }}>Contact</a>
           </div>
         </div>
       </footer>
