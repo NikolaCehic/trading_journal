@@ -67,7 +67,43 @@ export async function persistDerivation(
     }]),
   )
 
-  await db.transaction(async (tx) => {
+  try {
+    await db.transaction(async (tx) => {
+      await writeAllTables(tx, userId, version, positions, planSnapshotMap, daily, asset, session, dowMetrics, summary, findings)
+    })
+  } catch (err) {
+    // Sanitize DB-layer errors before they propagate to Inngest. NeonDbError
+    // carries a `params` array with every row being inserted — for thousands
+    // of positions, JSON-serializing that error exceeds Inngest's per-step
+    // output size limit and produces a confusing "step output greater than
+    // the limit" failure that hides the real cause.
+    if (err && typeof err === 'object' && 'code' in err) {
+      const e = err as { message?: string; code?: string; detail?: string }
+      const msg = [
+        `persistDerivation failed`,
+        e.code ? `(${e.code})` : null,
+        e.message ?? 'unknown error',
+        e.detail ? `— ${e.detail}` : null,
+      ].filter(Boolean).join(' ')
+      throw new Error(msg)
+    }
+    throw err
+  }
+}
+
+async function writeAllTables(
+  tx: Parameters<Parameters<DBTx['transaction']>[0]>[0],
+  userId: string,
+  version: number,
+  positions: Position[],
+  planSnapshotMap: Map<string, PlanSnapshot>,
+  daily: DailyMetricValue[],
+  asset: AssetMetricValue[],
+  session: SessionMetricValue[],
+  dowMetrics: DayOfWeekMetricValue[],
+  summary: SummaryRollupValue,
+  findings: Finding[],
+) {
     // Positions: delete then (optionally) insert.
     // position_fill has ON DELETE CASCADE on position_id, so deleting
     // positions also removes stale position_fill rows.
@@ -216,5 +252,4 @@ export async function persistDerivation(
         derivationVersion: version,
       })))
     }
-  })
 }
