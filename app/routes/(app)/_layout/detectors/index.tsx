@@ -6,6 +6,7 @@ import { listCustomDetectors, deleteCustomDetector, toggleCustomDetector, import
 import { getBuiltinDetectorSettings, setBuiltinDetectorEnabled } from '~/server/userPrefs'
 import { EmptyState } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { Modal } from '~/components/tj/Modal'
 import { downloadFile } from '~/lib/csv'
 
 export const Route = createFileRoute('/(app)/_layout/detectors/')({ component: DetectorsPage })
@@ -325,7 +326,15 @@ function DetectorsPage() {
                 <tr
                   key={det.id}
                   style={{ cursor: 'pointer' }}
+                  tabIndex={0}
+                  role="button"
                   onClick={() => navigate({ to: '/detectors/$detectorId', params: { detectorId: det.id } })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      navigate({ to: '/detectors/$detectorId', params: { detectorId: det.id } })
+                    }
+                  }}
                 >
                   <td style={{ paddingLeft: 20 }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 500, color: 'var(--fg)' }}>
@@ -437,85 +446,55 @@ function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b:
     onOpenChange(false)
   }
 
-  if (!open) return null
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={close}
-    >
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-card)',
-          padding: 24,
-          maxWidth: 560,
-          width: '90vw',
-          maxHeight: '80vh',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--fg)' }}>Import custom detectors</div>
-        <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>
-          Paste JSON from an export. Existing detectors with the same name will be skipped.
-        </div>
-        <textarea
-          className="tj-textarea"
-          rows={12}
-          placeholder='{"schemaVersion":1,"detectors":[...]}'
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
-        />
-        {result && (
-          <div
-            style={{
-              padding: 12,
-              background: 'var(--bg-base)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--r-default)',
-              fontSize: 13,
-              color: 'var(--fg)',
-            }}
-          >
-            Imported {result.imported} · Skipped {result.skipped} · Errors {result.errors.length}
-            {result.errors.length > 0 && (
-              <ul style={{ marginTop: 6, paddingLeft: 18, color: 'var(--pnl-down)', fontSize: 12 }}>
-                {result.errors.map((e, i) => (
-                  <li key={i}>
-                    {e.name}: {e.error}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button type="button" className="tj-btn" onClick={close}>
-            Close
-          </button>
-          <button
-            type="button"
-            className="tj-btn tj-btn-primary"
-            onClick={parseAndImport}
-            disabled={!text.trim() || mutation.isPending}
-          >
-            {mutation.isPending ? 'Importing…' : 'Import'}
-          </button>
-        </div>
+    <Modal open={open} onClose={close} title="Import custom detectors" maxWidth={560}>
+      <div style={{ fontSize: 12, color: 'var(--fg-subtle)' }}>
+        Paste JSON from an export. Existing detectors with the same name will be skipped.
       </div>
-    </div>
+      <textarea
+        className="tj-textarea"
+        rows={12}
+        placeholder='{"schemaVersion":1,"detectors":[...]}'
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
+      />
+      {result && (
+        <div
+          style={{
+            padding: 12,
+            background: 'var(--bg-base)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r-default)',
+            fontSize: 13,
+            color: 'var(--fg)',
+          }}
+        >
+          Imported {result.imported} · Skipped {result.skipped} · Errors {result.errors.length}
+          {result.errors.length > 0 && (
+            <ul style={{ marginTop: 6, paddingLeft: 18, color: 'var(--pnl-down)', fontSize: 12 }}>
+              {result.errors.map((e, i) => (
+                <li key={i}>
+                  {e.name}: {e.error}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button type="button" className="tj-btn" onClick={close}>
+          Close
+        </button>
+        <button
+          type="button"
+          className="tj-btn tj-btn-primary"
+          onClick={parseAndImport}
+          disabled={!text.trim() || mutation.isPending}
+        >
+          {mutation.isPending ? 'Importing…' : 'Import'}
+        </button>
+      </div>
+    </Modal>
   )
 }

@@ -16,6 +16,7 @@ import {
   SidePill,
 } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { Modal } from '~/components/tj/Modal'
 
 export const Route = createFileRoute('/(app)/_layout/trades/')({
   component: TradesPage,
@@ -63,7 +64,7 @@ function BulkTagDialog({
   const queryClient = useQueryClient()
   const [selectedTags, setSelectedTags] = useState<SelectedTag[]>([])
 
-  const { data: tagsData, isLoading: tagsLoading } = useQuery({
+  const { data: tagsData, isLoading: tagsLoading, isError: tagsError } = useQuery({
     queryKey: ['tags'],
     queryFn: () => listTags(),
     staleTime: 5 * 60_000,
@@ -105,44 +106,24 @@ function BulkTagDialog({
     selectedTags.some((t) => t.kind === tag.kind && t.id === tag.id)
 
   return (
-    // Backdrop
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={onClose}
-    >
-      {/* Dialog card */}
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-card)',
-          padding: 24,
-          maxWidth: 480,
-          width: '90vw',
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>
-          Tag {positionIds.length} position{positionIds.length === 1 ? '' : 's'}
-        </div>
+    <Modal open onClose={onClose} title="Bulk tag trades">
+      <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+        Tag {positionIds.length} position{positionIds.length === 1 ? '' : 's'}
+      </div>
 
-        {tagsLoading ? (
-          <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}>Loading tags…</div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {tagsError && (
+        <div
+          role="alert"
+          style={{ fontSize: 13, color: 'var(--fg-subtle)', padding: 12 }}
+        >
+          Couldn't load tags. Close and retry.
+        </div>
+      )}
+
+      {tagsLoading ? (
+        <div style={{ color: 'var(--fg-subtle)', fontSize: 13 }}>Loading tags…</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* Setup tags */}
             <div>
               <div
@@ -245,8 +226,7 @@ function BulkTagDialog({
             {isPending ? 'Applying…' : `Apply tag${selectedTags.length !== 1 ? 's' : ''}`}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -514,6 +494,8 @@ function TradesPage() {
                   key={r.id}
                   data-hl={isHl ? 'true' : undefined}
                   className={isSel ? 'is-selected' : ''}
+                  role="button"
+                  tabIndex={0}
                   style={
                     isHl
                       ? {
@@ -525,6 +507,12 @@ function TradesPage() {
                   onClick={() =>
                     navigate({ to: '/trades/$positionId', params: { positionId: r.id } })
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      navigate({ to: '/trades/$positionId', params: { positionId: r.id } })
+                    }
+                  }}
                 >
                   <td
                     style={{ paddingLeft: 20 }}

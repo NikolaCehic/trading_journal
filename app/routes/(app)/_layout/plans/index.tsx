@@ -99,7 +99,15 @@ function PlansPage() {
               {rows.map((p) => (
                 <tr
                   key={p.id}
+                  tabIndex={0}
+                  role="button"
                   onClick={() => navigate({ to: '/plans/$planId', params: { planId: p.id } })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      navigate({ to: '/plans/$planId', params: { planId: p.id } })
+                    }
+                  }}
                 >
                   <td style={{ paddingLeft: 20, fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
                     {p.symbol}
