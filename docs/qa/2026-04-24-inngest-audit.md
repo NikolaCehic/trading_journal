@@ -130,6 +130,19 @@
 
 ---
 
+### I-15 · [FIXED] `deriveOnIngestionCompleteFn` step wrappers caused "opcode output greater than limit" on large wallets
+
+- **File:** `src/jobs/derivation.ts`
+- **Symptom:** After the I-13 WS fix, large-wallet derivation still failed with `Error validating generator opcode — step output is greater than the limit`. Inngest dev UI couldn't show the real cause — the wrapped error itself hit the step-output size cap.
+- **Root cause:** each `step.run(...)` in the function captures its callback's return value (or thrown error) as the "step output" for retry memoization. Inngest's dev server caps step output at ~1 MB. For derivation involving thousands of positions + metric rows, the cumulative memoization state — or a thrown `NeonDbError` whose `params` field mirrors the full write payload — exceeds that cap and surfaces as this opaque opcode-validation failure. The I-14 sanitization helps for the error case but not for any cumulative-size path.
+- **Fix applied:** remove all `step.run(...)` wrappers from both `deriveOnIngestionCompleteFn` and `rederiveFn`. The heavy work (`runDerivation`) is already idempotent — its delete-then-insert happens inside a real Postgres transaction (I-13), and a retry re-running it is safe. Status UPDATEs and `inngest.send()` calls are likewise idempotent. Losing step-level memoization just means a failed run retries from the top; that's cheaper than fighting the opcode-size failure mode for edge cases that don't meaningfully benefit from partial progress tracking.
+- **Trade-offs accepted:**
+  - **No partial progress** in the Inngest dev UI for this function. The function either fully succeeds or fully retries. Other Inngest functions (hl-wallet-pull, digest/compose, etc.) still use `step.run` for their sub-steps.
+  - **Retries re-execute** status UPDATEs and event sends that already ran. These are idempotent (UPDATE is a single-row upsert, event sends are deduped by event id downstream).
+- **Verification:** `pnpm typecheck` clean, 342 tests pass. Real test is the user's 40M+ USD wallet rerun — the derive step should complete green, or fail with an actual root-cause message (not an opcode-size error).
+
+---
+
 ### I-13 · [FIXED] `persistDerivation` HTTP batch 413'd on large wallets — switched to Neon WebSocket transactions
 
 - **File:** `src/derivation/persist.ts`, `src/db/client.ts`, `src/derivation/runner.ts`
