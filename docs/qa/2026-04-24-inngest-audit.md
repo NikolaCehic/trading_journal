@@ -130,6 +130,26 @@
 
 ---
 
+### I-13 · [FIXED] `persistDerivation` HTTP batch 413'd on large wallets — switched to Neon WebSocket transactions
+
+- **File:** `src/derivation/persist.ts`, `src/db/client.ts`, `src/derivation/runner.ts`
+- **Symptom:** Importing a 40M+ USD Hyperliquid wallet (thousands of positions × 5 metric tables × thousands of findings) threw `NeonDbError: error serializing parameter 0: value too large to transmit` at `persistDerivation:232` during `db.batch([...])`. Inngest `deriveOnIngestionCompleteFn` retried twice and gave up.
+- **Root cause:** Wave 1 T04's fix used `db.batch([...])` on the Neon HTTP driver because `db.transaction` isn't supported on HTTP. That worked for small/medium wallets but the HTTP request body size is capped in the low MB range; a derivation output payload (positions + position_fills + 5 metric tables + findings, all with multi-row VALUES clauses) exceeded that cap for active traders.
+- **Fix applied:**
+  1. `src/db/client.ts` now exports **two** drizzle clients:
+     - `db` (HTTP, `neon-http`) — unchanged default for short queries everywhere.
+     - `dbTx` (WebSocket, `neon-serverless`) — supports real transactions of arbitrary size. Uses `DIRECT_URL` if set (required — the `-pooler` endpoint rejects long-lived WS sessions), falls back to `DATABASE_URL`. `globalThis.WebSocket` is wired into `neonConfig.webSocketConstructor` when available (Node 22+).
+  2. `src/derivation/persist.ts` reverted from `db.batch([...])` to real `db.transaction(async (tx) => { ... })`. Parameter type changed from `DB` to `DBTx`. CRIT-1 and data H-01 guarantees preserved (atomic DELETE+INSERT, snapshot preservation by id).
+  3. `src/derivation/runner.ts` imports `dbTx` as `defaultDbTx` and passes it to `persistDerivation`. `RunDerivationArgs` now accepts an optional `dbTx` field so tests can inject a mock; Inngest functions don't need any change.
+  4. Tests (`src/derivation/persist.test.ts` and `tests/unit/derivation/runner-custom.test.ts`) rewritten to mock `db.transaction(fn)` instead of `db.batch(ops)`, with outer-db write spies that fail loud if any write escapes the tx callback (CRIT-1 regression guard).
+- **Verification:** `pnpm typecheck` clean, 342 tests pass, `pnpm build` succeeds. Restart `pnpm dev` and re-import the large wallet — `derive-on-ingestion-complete` should complete without the 413.
+- **Follow-up considerations:**
+  - The WS pool opens a persistent connection on first use and holds it open. In dev and long-running Node server deploys (the current deploy target for TanStack Start) this is fine. If/when the app moves to a serverless runtime with cold-start-per-invocation, the pool needs `maxConnections: 1` + explicit teardown after each invocation, or the connection logic should be reshaped.
+  - The snapshot read (`db.select(...)` before the tx) still goes through the HTTP `db` handle via the parameter. It's idempotent and small so payload cap doesn't apply; moving it into the tx would be correct but unnecessary.
+  - `DIRECT_URL` must be set in `.env.local` for the WS client to work. Already set during this project's migration fix; document in README/.env.example so future devs don't hit a confusing connection error.
+
+---
+
 ### I-10 · [VERIFY] `inngest/cloudflare` still listed in imports anywhere?
 
 - **Files:** grep-wide.

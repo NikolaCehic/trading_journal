@@ -1,25 +1,24 @@
 import { describe, it, expect, vi } from 'vitest'
 import { persistDerivation } from './persist'
-import type { DB } from '~/db/client'
+import type { DBTx } from '~/db/client'
 import type { Position } from '~/domain/position'
 import type { SummaryRollupValue } from '~/domain/metrics'
 
 /**
- * Structural test: we mock `db.batch` and the query builders so we can verify:
- *   1. `db.batch` is called exactly once with every delete/insert query
- *      bundled into a single atomic request (CRIT-1). The neon-http driver
- *      runs `db.batch(queries[])` as a single server-side transaction, so
- *      concurrent readers never observe the deleted-not-yet-inserted empty
- *      window between DELETE and INSERT.
- *   2. planSnapshot* columns are read from existing rows and carried forward
- *      into the INSERT payload (data H-01), so a position with
- *      `planSnapshotStopPrice` set before re-derivation still has that value
- *      afterwards.
+ * Structural test: we mock `db.transaction` and the query builders so we can
+ * verify:
+ *   1. `db.transaction` is called exactly once (CRIT-1). Every destructive
+ *      write runs inside the tx callback, so concurrent readers never see the
+ *      deleted-not-yet-inserted empty window.
+ *   2. No write leaks out to the outer `db` handle — only `tx` is used for
+ *      deletes and inserts.
+ *   3. planSnapshot* columns are read from existing rows and carried forward
+ *      into the INSERT payload (data H-01).
  *
- * History: an earlier version of this code wrapped everything in
- * `db.transaction(...)`, but neon-http throws "No transactions support in
- * neon-http driver" at runtime. `db.batch` is the neon-http-native way to
- * achieve the same atomicity guarantee.
+ * History: this used to be written on `db.batch(...)` for the neon-http
+ * driver, which 413'd on large wallets ("value too large to transmit"). The
+ * runtime now uses the neon-serverless (WS) driver which supports real
+ * transactions of arbitrary size.
  */
 
 type InsertCall = { table: unknown; values: unknown }
@@ -27,40 +26,51 @@ type InsertCall = { table: unknown; values: unknown }
 function makeFakeDb(existingPositions: Array<Record<string, unknown>>) {
   const insertCalls: InsertCall[] = []
   const deleteCalls: unknown[] = []
-  const batchCalls: unknown[][] = []
+  const outerWriteCalls: string[] = []
 
-  // Each builder method returns a plain object that we can stash in `ops`.
-  // `persistDerivation` never awaits these directly — they're passed to
-  // `db.batch` — so we don't need them to be thenable.
-  const db = {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(async () => existingPositions),
-      })),
-    })),
-    delete: vi.fn((table: unknown) => ({
-      where: vi.fn((_cond: unknown) => {
-        const query = { __kind: 'delete', table }
-        deleteCalls.push(table)
-        return query
-      }),
-    })),
-    insert: vi.fn((table: unknown) => ({
-      values: vi.fn((values: unknown) => {
-        insertCalls.push({ table, values })
-        const query: Record<string, unknown> = { __kind: 'insert', table, values }
-        // Support `.insert(...).values(...).onConflictDoNothing()` chains.
-        query['onConflictDoNothing'] = vi.fn(() => query)
-        return query
-      }),
-    })),
-    batch: vi.fn(async (ops: unknown[]) => {
-      batchCalls.push(ops)
-      return []
+  const makeInsertChain = (table: unknown) => ({
+    values: vi.fn(async (values: unknown) => {
+      insertCalls.push({ table, values })
+      // Support `.insert(...).values(...).onConflictDoNothing()` chains.
+      return {
+        onConflictDoNothing: vi.fn(async () => undefined),
+      }
     }),
+  })
+
+  const makeDeleteChain = (table: unknown) => ({
+    where: vi.fn(async () => {
+      deleteCalls.push(table)
+      return undefined
+    }),
+  })
+
+  const tx = {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({ where: vi.fn(async () => existingPositions) })),
+    })),
+    delete: vi.fn((table: unknown) => makeDeleteChain(table)),
+    insert: vi.fn((table: unknown) => makeInsertChain(table)),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
   }
 
-  return { db, insertCalls, deleteCalls, batchCalls }
+  const db = {
+    // Snapshot read happens on the outer db handle before the transaction.
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({ where: vi.fn(async () => existingPositions) })),
+    })),
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<void>) => {
+      await fn(tx)
+    }),
+    // Spies that should NEVER be called — any outer-db write would be a
+    // CRIT-1 regression. Each throws to fail loud if persistDerivation
+    // regresses and writes outside the transaction callback.
+    delete: vi.fn(() => { outerWriteCalls.push('delete'); throw new Error('outer db.delete') }),
+    insert: vi.fn(() => { outerWriteCalls.push('insert'); throw new Error('outer db.insert') }),
+    update: vi.fn(() => { outerWriteCalls.push('update'); throw new Error('outer db.update') }),
+  }
+
+  return { db, tx, insertCalls, deleteCalls, outerWriteCalls }
 }
 
 function makePosition(overrides: Partial<Position> = {}): Position {
@@ -108,12 +118,12 @@ const emptySummary: SummaryRollupValue = {
 }
 
 describe('persistDerivation', () => {
-  it('bundles every write into a single db.batch call (CRIT-1)', async () => {
-    const { db, batchCalls, deleteCalls } = makeFakeDb([])
+  it('runs every write inside db.transaction (CRIT-1)', async () => {
+    const { db, outerWriteCalls, deleteCalls } = makeFakeDb([])
 
     const positions = [makePosition()]
     await persistDerivation(
-      db as unknown as DB,
+      db as unknown as DBTx,
       'u_1',
       1,
       positions,
@@ -122,24 +132,15 @@ describe('persistDerivation', () => {
       [],
     )
 
-    // Exactly one batch call — every delete/insert goes into the same atomic
-    // server-side request.
-    expect(db.batch).toHaveBeenCalledTimes(1)
-    expect(batchCalls).toHaveLength(1)
-    const ops = batchCalls[0]!
-    // The batch includes deletes for all the derived tables (position, daily,
-    // asset, session, dow, summary, findings) plus inserts where we have data.
-    expect(ops.length).toBeGreaterThanOrEqual(7)
-    // Every op is one of our query-builder stubs.
-    for (const op of ops) {
-      expect(op).toBeDefined()
-    }
-    // All the expected tables were queued for delete.
+    expect(db.transaction).toHaveBeenCalledTimes(1)
+    // Every destructive write went through the tx handle, not the outer db.
+    expect(outerWriteCalls).toEqual([])
+    // Deletes fired for all the derived tables (position, daily, asset,
+    // session, dow, summary, findings).
     expect(deleteCalls.length).toBeGreaterThanOrEqual(7)
   })
 
   it('preserves planSnapshot* columns across the delete-then-insert cycle (H-01)', async () => {
-    // Simulate an existing row with a snapshot set by linkPositionToPlan.
     const existing = [{
       id: 'pos_abc',
       entry: '48000',
@@ -152,7 +153,7 @@ describe('persistDerivation', () => {
 
     const positions = [makePosition({ id: 'pos_abc', planId: 'plan_x' })]
     await persistDerivation(
-      db as unknown as DB,
+      db as unknown as DBTx,
       'u_1',
       1,
       positions,
@@ -161,8 +162,6 @@ describe('persistDerivation', () => {
       [],
     )
 
-    // Locate the position insert call — it's the one whose values is an array
-    // of rows (versus the summary insert which passes a single object).
     const positionInsert = insertCalls.find(c => Array.isArray(c.values))
     expect(positionInsert).toBeDefined()
     const rows = positionInsert!.values as Array<Record<string, unknown>>
@@ -174,12 +173,12 @@ describe('persistDerivation', () => {
     expect(row['planSnapshotRationale']).toBe('breakout retest')
   })
 
-  it('leaves planSnapshot* as null for positions that had no prior snapshot', async () => {
-    const { db, insertCalls } = makeFakeDb([]) // no prior rows
+  it('leaves planSnapshot* as null for positions with no prior snapshot', async () => {
+    const { db, insertCalls } = makeFakeDb([])
 
     const positions = [makePosition({ id: 'pos_new' })]
     await persistDerivation(
-      db as unknown as DB,
+      db as unknown as DBTx,
       'u_1',
       1,
       positions,

@@ -150,11 +150,21 @@ function buildMockDb(
     update: () => ({
       set: () => ({ where: () => Promise.resolve([]) }),
     }) as unknown as ReturnType<DB['update']>,
-    // persistDerivation bundles every write into a single `db.batch([...])`
-    // call (the neon-http-native equivalent of a transaction). For this mock
-    // we just resolve — the individual query builders above already return
-    // thenable-shaped results that satisfy the runner's other call sites.
-    batch: async (_ops: unknown[]) => [] as unknown[],
+    // persistDerivation now runs inside a real transaction via the WS-backed
+    // `dbTx` client. For this mock we just invoke the callback with the same
+    // mock DB as the `tx` handle — the individual query builders above are
+    // already thenable-shaped, so tx.delete/insert/update inside
+    // persistDerivation work the same way.
+    transaction: async (fn: (tx: unknown) => Promise<void>) => {
+      await fn({
+        select: (_fields?: unknown) => selectChain as unknown as ReturnType<DB['select']>,
+        insert: () => insertChain as unknown as ReturnType<DB['insert']>,
+        delete: () => deleteChain as unknown as ReturnType<DB['delete']>,
+        update: () => ({
+          set: () => ({ where: () => Promise.resolve([]) }),
+        }),
+      })
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as unknown as DB
 }
@@ -217,7 +227,7 @@ function buildRunnerDb(userDets: ReturnType<typeof makeUserDet>[], posTagRows: o
 describe('runDerivation — custom detector wiring', () => {
   it('no user detectors → only built-in findings, returns correct counts', async () => {
     const db = buildRunnerDb([])
-    const result = await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })
+    const result = await runDerivation({ db, dbTx: db as unknown as import("~/db/client").DBTx, userId: 'u1', version: 4, now: new Date('2024-02-01') })
 
     // With the steady-state 2-position fill set (winner + loser) built-in detectors
     // may or may not fire, but the runner should complete without throwing.
@@ -230,7 +240,7 @@ describe('runDerivation — custom detector wiring', () => {
     const det = makeUserDet({ id: 'det-loser', predicate: { pnl: { lt: 0 } } })
     const db = buildRunnerDb([det])
 
-    const result = await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })
+    const result = await runDerivation({ db, dbTx: db as unknown as import("~/db/client").DBTx, userId: 'u1', version: 4, now: new Date('2024-02-01') })
 
     // The BTCUSDC position is a loser; the ETHUSDC position is a winner.
     // So exactly 1 custom finding should be emitted.
@@ -246,7 +256,7 @@ describe('runDerivation — custom detector wiring', () => {
     // our mock returns what we seed it with, so we seed with empty to simulate disabled)
     const db = buildRunnerDb([]) // disabled det is not returned by the WHERE enabled=true query
 
-    const result = await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })
+    const result = await runDerivation({ db, dbTx: db as unknown as import("~/db/client").DBTx, userId: 'u1', version: 4, now: new Date('2024-02-01') })
 
     // Still 2 positions but 0 custom findings
     expect(result.positionCount).toBe(2)
@@ -276,7 +286,7 @@ describe('runDerivation — custom detector wiring', () => {
     const det = makeUserDet({ id: 'det-fomo', predicate: { hasTag: 'FOMO' } })
     const db = buildRunnerDb([det], [posTagRow], [], [mistakeTagRow])
 
-    const result = await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })
+    const result = await runDerivation({ db, dbTx: db as unknown as import("~/db/client").DBTx, userId: 'u1', version: 4, now: new Date('2024-02-01') })
 
     // At least 1 finding (the FOMO match on the loser position)
     expect(result.positionCount).toBe(2)
@@ -335,13 +345,25 @@ describe('runDerivation — custom detector wiring', () => {
       insert: () => insertChain as unknown as ReturnType<DB['insert']>,
       delete: () => deleteChain as unknown as ReturnType<DB['delete']>,
       update: () => updateChain as unknown as ReturnType<DB['update']>,
-      // persistDerivation now uses `db.batch([...])` (neon-http's atomic
-      // multi-query primitive). The insertChain above captures the finding
-      // rows before the batch dispatches, so we can just resolve here.
-      batch: async (_ops: unknown[]) => [] as unknown[],
+      // persistDerivation runs inside db.transaction(fn). Invoke the callback
+      // with a tx handle that reuses the same query-builder chains above — the
+      // `insertChain.values()` captures finding rows on its way through.
+      transaction: async (fn: (tx: unknown) => Promise<void>) => {
+        await fn({
+          select: (_fields?: unknown) => ({
+            from: (table: object) => {
+              const fn2 = tableMap.get(table) ?? (() => Promise.resolve([]))
+              return selectChain(fn2) as unknown
+            },
+          }),
+          insert: () => insertChain,
+          delete: () => deleteChain,
+          update: () => updateChain,
+        })
+      },
     } as unknown as DB
 
-    await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })
+    await runDerivation({ db, dbTx: db as unknown as import("~/db/client").DBTx, userId: 'u1', version: 4, now: new Date('2024-02-01') })
 
     // Filter to custom findings
     const customFindings = capturedFindings.filter(

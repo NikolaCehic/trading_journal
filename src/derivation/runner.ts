@@ -1,5 +1,6 @@
 import { eq, inArray, and } from 'drizzle-orm'
-import type { DB } from '~/db/client'
+import type { DB, DBTx } from '~/db/client'
+import { dbTx as defaultDbTx } from '~/db/client'
 import { fill as fillTable } from '~/db/schema/canonical'
 import { position as positionTable } from '~/db/schema/derivation'
 import { tradePlan, positionTag, setupTag, mistakeTag } from '~/db/schema/journal'
@@ -26,10 +27,16 @@ export type RunDerivationArgs = {
   userId: string
   version?: number
   now?: Date
+  /**
+   * Optional WS-backed client for the transactional persist step. Defaults to
+   * the module-level `dbTx` export from `~/db/client`. Tests pass their own
+   * mock so writes are intercepted instead of hitting a real DB.
+   */
+  dbTx?: DBTx
 }
 
 export async function runDerivation(args: RunDerivationArgs) {
-  const { db, userId, version = DERIVATION_VERSION, now = new Date() } = args
+  const { db, userId, version = DERIVATION_VERSION, now = new Date(), dbTx = defaultDbTx } = args
   log.info('derivation: start', { userId, version })
 
   const rows = await db.select().from(fillTable).where(eq(fillTable.userId, userId))
@@ -147,7 +154,10 @@ export async function runDerivation(args: RunDerivationArgs) {
 
   const findings = [...builtInFindings, ...userFindings]
 
-  await persistDerivation(db, userId, version, positions, daily, asset, session, dowMetrics, summary, findings)
+  // Writes go via the WS client (supports real transactions + no payload cap).
+  // Reads above use the passed-in HTTP `db` — faster for short queries and
+  // avoids opening a WS connection we don't need.
+  await persistDerivation(dbTx, userId, version, positions, daily, asset, session, dowMetrics, summary, findings)
 
   log.info('derivation: done', { userId, version, positions: positions.length, findings: findings.length, builtIn: builtInFindings.length, custom: userFindings.length })
   return { positionCount: positions.length, findingCount: findings.length }
