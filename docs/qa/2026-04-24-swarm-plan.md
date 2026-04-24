@@ -11,8 +11,8 @@
 ## Driver instructions (read before dispatching)
 
 1. **Before anything else,** run `pnpm typecheck && pnpm test && git status` to confirm a clean baseline. If these fail, fix or revert until green.
-2. **Wave 1 dispatch:** copy each `T01`–`T18` block below into a separate `Agent()` call **in a single message**. All 18 are file-isolated and parallel-safe.
-   - If 18 concurrent agents is too many for the local rate limit, split into two sub-batches (e.g., T01–T09, then T10–T18). No inter-task dependency within Wave 1, so order within sub-batches is arbitrary.
+2. **Wave 1 dispatch:** copy each `T01`–`T18` block (T06 splits into T06a + T06b, so 19 task blocks total) into a separate `Agent()` call **in a single message**. All 19 are file-isolated and parallel-safe.
+   - If 19 concurrent agents is too many for the local rate limit, split into two sub-batches (e.g., T01–T09, then T10–T18). No inter-task dependency within Wave 1, so order within sub-batches is arbitrary.
 3. **Gate 1 (blocking):** when every Wave-1 agent has returned, run:
    - `pnpm typecheck` — must pass
    - `pnpm test` — must pass
@@ -36,8 +36,8 @@
 ## Scope
 
 - 7 CRITICAL + 23 HIGH = 30 findings
-- Pattern-collapsed (per master punch list patterns A–F) into **22 tasks** across 3 waves
-- Total parallelism: 18 + 3 + 1 = **22 subagent dispatches**
+- Pattern-collapsed (per master punch list patterns A–F) into **23 tasks** across 3 waves
+- Total parallelism: 19 + 3 + 1 = **23 subagent dispatches**
 - Excluded: 32 MEDIUM, 21 LOW, 21 INFO findings (separate phase — see master punch list)
 
 ---
@@ -82,9 +82,9 @@
 
 ---
 
-## Wave 1 — 18 parallel tasks (primitives + atomic fixes)
+## Wave 1 — 19 parallel tasks (primitives + atomic fixes)
 
-> All Wave-1 tasks touch disjoint files. Dispatch in a single message with 18 `Agent()` calls (or two sub-batches of ~9 each). Every task below is written as a ready-to-paste prompt: title, goal, files, steps, acceptance, verification.
+> All Wave-1 tasks touch disjoint files. Dispatch in a single message with 19 `Agent()` calls (or two sub-batches of ~10 each). Every task below is written as a ready-to-paste prompt: title, goal, files, steps, acceptance, verification.
 
 ---
 
@@ -974,7 +974,7 @@ pnpm build
 ## Parallelism map
 
 ```
-Wave 1 (18 agents, parallel):
+Wave 1 (19 agents, parallel):
   T01 Modal.tsx (new)           T02 toastError.ts (new)       T03 globals.css
   T04 persist.ts                T05 __root.tsx                T06a plans/index.tsx
   T06b detectors/index.tsx      T07 import.tsx                T08 3 detail-form files
