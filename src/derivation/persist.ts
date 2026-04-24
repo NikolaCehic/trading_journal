@@ -72,22 +72,68 @@ export async function persistDerivation(
       await writeAllTables(tx, userId, version, positions, planSnapshotMap, daily, asset, session, dowMetrics, summary, findings)
     })
   } catch (err) {
-    // Sanitize DB-layer errors before they propagate to Inngest. NeonDbError
-    // carries a `params` array with every row being inserted — for thousands
-    // of positions, JSON-serializing that error exceeds Inngest's per-step
-    // output size limit and produces a confusing "step output greater than
-    // the limit" failure that hides the real cause.
-    if (err && typeof err === 'object' && 'code' in err) {
-      const e = err as { message?: string; code?: string; detail?: string }
-      const msg = [
-        `persistDerivation failed`,
-        e.code ? `(${e.code})` : null,
-        e.message ?? 'unknown error',
-        e.detail ? `— ${e.detail}` : null,
-      ].filter(Boolean).join(' ')
-      throw new Error(msg)
+    // Sanitize DB-layer errors before they propagate to Inngest.
+    //
+    // Drizzle wraps driver errors in DrizzleQueryError whose `.message`
+    // contains the FULL SQL query text ("Failed query: insert into ... values
+    // ($1, $2), ($3, $4), ..."). For chunked multi-row inserts the SQL itself
+    // is still tens of KB; combined with the `.params` array and re-thrown
+    // through Inngest's step-output serializer, this overflows the opcode
+    // size cap. We extract only the underlying Postgres error fields
+    // (code / detail / the first line of cause.message) and throw a short,
+    // bounded string.
+    throw new Error(summarizeDbError(err))
+  }
+}
+
+function summarizeDbError(err: unknown): string {
+  if (!err || typeof err !== 'object') {
+    return `persistDerivation failed: ${String(err)}`
+  }
+  // Drizzle's DrizzleQueryError has `.cause` = the underlying driver error
+  // (NeonDbError in our case) which carries the useful fields.
+  const cause = (err as { cause?: unknown }).cause
+  const source = (cause && typeof cause === 'object') ? (cause as Record<string, unknown>) : (err as Record<string, unknown>)
+  const code = typeof source['code'] === 'string' ? source['code'] : undefined
+  const detail = typeof source['detail'] === 'string' ? source['detail'] : undefined
+  const constraint = typeof source['constraint'] === 'string' ? source['constraint'] : undefined
+  const table = typeof source['table'] === 'string' ? source['table'] : undefined
+  // Strip the "Failed query:" + full SQL prefix — we only want the first line.
+  const rawMessage = typeof source['message'] === 'string' ? source['message'] : undefined
+  const shortMessage = rawMessage?.split('\n')[0]?.slice(0, 500)
+  return [
+    'persistDerivation failed',
+    code ? `(${code})` : null,
+    shortMessage ?? 'unknown error',
+    table ? `table=${table}` : null,
+    constraint ? `constraint=${constraint}` : null,
+    detail ? `— ${detail}` : null,
+  ].filter(Boolean).join(' ').slice(0, 2000)
+}
+
+// Postgres caps any single statement at 65,535 bound parameters. For multi-
+// row inserts with many columns (e.g., position at 22 cols) that maps to
+// ~2,900 rows before we hit the limit. We chunk at 500 rows to stay well
+// under for even the widest table, keeping every INSERT payload small enough
+// that error messages and opcode outputs remain sane.
+const INSERT_CHUNK_SIZE = 500
+
+async function insertChunked<TRow>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  table: unknown,
+  rows: TRow[],
+  opts: { onConflictDoNothing?: boolean } = {},
+) {
+  if (rows.length === 0) return
+  for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE)
+    const builder = tx.insert(table).values(chunk)
+    if (opts.onConflictDoNothing) {
+      await builder.onConflictDoNothing()
+    } else {
+      await builder
     }
-    throw err
   }
 }
 
@@ -111,7 +157,7 @@ async function writeAllTables(
       and(eq(positionTable.userId, userId), eq(positionTable.derivationVersion, version)),
     )
     if (positions.length) {
-      await tx.insert(positionTable).values(positions.map(p => {
+      const positionRows = positions.map(p => {
         const snap = planSnapshotMap.get(p.id) ?? null
         return {
           id: p.id, userId: p.userId, exchange: p.exchange, symbol: p.symbol,
@@ -138,14 +184,13 @@ async function writeAllTables(
           openedAt: p.openedAt, closedAt: p.closedAt,
           derivationVersion: version,
         }
-      }))
-      const rows = positions.flatMap(p => p.fills.map((f, i) => ({
+      })
+      await insertChunked(tx, positionTable, positionRows)
+      const fillRows = positions.flatMap(p => p.fills.map((f, i) => ({
         id: `${p.id}_fill_${i}`,
         positionId: p.id, fillId: f.fillId, role: f.role, derivationVersion: version,
       })))
-      if (rows.length) {
-        await tx.insert(positionFill).values(rows).onConflictDoNothing()
-      }
+      await insertChunked(tx, positionFill, fillRows, { onConflictDoNothing: true })
     }
 
     // Daily metrics
@@ -243,13 +288,14 @@ async function writeAllTables(
       and(eq(findingTable.userId, userId), eq(findingTable.derivationVersion, version)),
     )
     if (findings.length) {
-      await tx.insert(findingTable).values(findings.map(f => ({
+      const findingRows = findings.map(f => ({
         id: f.id, userId: f.userId, detectorId: f.detectorId, severity: f.severity,
         title: f.title, bodyMarkdown: f.bodyMarkdown,
         evidence: f.evidence as unknown,
         referencedPositionIds: f.referencedPositionIds,
         periodStart: f.periodStart, periodEnd: f.periodEnd,
         derivationVersion: version,
-      })))
+      }))
+      await insertChunked(tx, findingTable, findingRows)
     }
 }
