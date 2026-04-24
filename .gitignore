@@ -27,3 +27,6 @@ dist
 # playwright
 /playwright-report/
 /test-results/
+
+# UI smoke-test output
+scripts/smoke-out/
