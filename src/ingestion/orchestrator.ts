@@ -92,11 +92,22 @@ export class Orchestrator {
       }
     }
 
+    // Record an informational message on zero-result imports so the UI can
+    // distinguish "successfully imported N trades" from "completed, but the
+    // source had nothing". Without this, a wallet with no Hyperliquid
+    // activity (or a CSV with only header rows) silently shows up as green
+    // "complete" and the user is left wondering why /trades is empty.
+    const emptyMessage =
+      fillCount === 0 && skippedCount === 0 && erroredCount === 0
+        ? 'No trades found in this import. Verify the wallet address or CSV content — the source returned zero rows.'
+        : null
+
     await this.db.update(importRecord)
       .set({
         status: 'complete',
         fillCount,
         skippedCount,
+        errorMessage: emptyMessage,
         completedAt: new Date(),
       })
       .where(eq(importRecord.id, importId))
