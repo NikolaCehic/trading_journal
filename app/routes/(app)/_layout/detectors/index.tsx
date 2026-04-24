@@ -107,7 +107,7 @@ function DetectorsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['detectors'],
     queryFn: () => listCustomDetectors(),
     staleTime: 30_000,
@@ -177,6 +177,7 @@ function DetectorsPage() {
       queryClient.setQueryData(['detectors'], ctx?.prev)
       toast.error(String(err))
     },
+    onSuccess: (_, vars) => toast.success(vars.enabled ? 'Detector enabled' : 'Detector disabled'),
   })
 
   function handleDelete(id: string, name: string) {
@@ -204,6 +205,21 @@ function DetectorsPage() {
     }
     const name = `custom-detectors-${new Date().toISOString().slice(0, 10)}.json`
     downloadFile(name, JSON.stringify(bundle, null, 2), 'application/json')
+  }
+
+  if (!isLoading && error) {
+    return (
+      <div className="tj-card" role="alert" style={{ padding: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Couldn't load detectors</div>
+        <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+          Something went wrong loading your detectors. Try reloading.
+        </div>
+        <button type="button" className="tj-btn tj-btn-sm" style={{ marginTop: 12 }}
+                onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      </div>
+    )
   }
 
   return (

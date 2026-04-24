@@ -18,18 +18,19 @@
   /* Text */
   --fg: #ededed;
   --fg-muted: #a3a3a3;
-  --fg-subtle: #737373;
-  --fg-faint: #525252;
+  --fg-subtle: #9e9e9e;
+  --fg-faint: #8a8a8a;
 
   /* Accent + semantic */
   --accent: #ea580c;
+  --accent-btn: #c2410c;
   --accent-weak: rgba(234, 88, 12, 0.12);
   --accent-border: rgba(234, 88, 12, 0.32);
-  --focus-ring: rgba(234, 88, 12, 0.5);
+  --focus-ring: #ea580c;
 
   --pnl-up: #16a34a;
   --pnl-up-weak: rgba(22, 163, 74, 0.12);
-  --pnl-down: #dc2626;
+  --pnl-down: #f87171;
   --pnl-down-weak: rgba(220, 38, 38, 0.12);
   --amber: #d97706;
   --amber-weak: rgba(217, 119, 6, 0.14);
@@ -214,11 +215,11 @@ button { font-family: inherit; }
 .tj-btn:hover { border-color: var(--border-hover); background: var(--bg-hover); }
 .tj-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .tj-btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-btn);
+  border-color: var(--accent-btn);
   color: #fff;
 }
-.tj-btn-primary:hover { background: #c2410c; border-color: #c2410c; }
+.tj-btn-primary:hover { background: #9a3412; border-color: #9a3412; }
 .tj-btn-ghost {
   background: transparent;
   border-color: transparent;
@@ -436,6 +437,20 @@ button { font-family: inherit; }
 
 /* Focus ring utility */
 .tj-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+  border-color: var(--accent);
+}
+
+/* Focus-visible rings for all interactive primitives (a11y A-14, A-15, A-26) */
+.tj-btn:focus-visible,
+.tj-chip:focus-visible,
+.tj-nav-pill:focus-visible,
+.tj-tab:focus-visible,
+.tj-seg button:focus-visible,
+.tj-avatar-menu:focus-visible,
+.tj-input:focus-visible,
+.tj-textarea:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--focus-ring);
   border-color: var(--accent);

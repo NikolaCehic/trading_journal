@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { eq, and, inArray } from 'drizzle-orm'
 import { auth } from '~/auth/server'
+import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import { position } from '~/db/schema/derivation'
 import { positionTag, setupTag, mistakeTag } from '~/db/schema/journal'
@@ -16,11 +17,17 @@ export const previewCustomDetector = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<{ matched: number; total: number; sample: Array<{ positionId: string; symbol: string; realizedPnl: number; closedAt: string | null }> }> => {
     const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
     const userId = session.user.id
 
-    // Load user's positions at current DERIVATION_VERSION
+    // Load user's positions at current DERIVATION_VERSION (capped to avoid unbounded fetch; see api H-04)
+    const POSITION_PREVIEW_CAP = 5000
     const rows = await db.select().from(position)
       .where(and(eq(position.userId, userId), eq(position.derivationVersion, DERIVATION_VERSION)))
+      .limit(POSITION_PREVIEW_CAP)
+    if (process.env.NODE_ENV !== 'production' && rows.length >= POSITION_PREVIEW_CAP) {
+      console.warn(`[previewCustomDetector] position fetch hit cap (${POSITION_PREVIEW_CAP}) for user ${userId}; preview counts reflect capped set`)
+    }
 
     const positions: Position[] = rows.map(r => ({
       id: r.id,

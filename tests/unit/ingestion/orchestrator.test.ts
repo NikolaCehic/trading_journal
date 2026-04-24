@@ -53,10 +53,29 @@ function makeDbMock() {
   const calls: string[] = []
   return {
     calls,
-    insert: vi.fn().mockImplementation(() => ({
-      values: vi.fn().mockReturnThis(),
-      onConflictDoNothing: vi.fn().mockResolvedValue([]),
-    })),
+    insert: vi.fn().mockImplementation(() => {
+      // Captured from `.values({ id, ... })` so `.returning({ id })`
+      // can echo it back, matching the real driver's semantics when a
+      // row is actually inserted (i.e. not a duplicate / conflict skip).
+      let lastValues: { id?: string } = {}
+      const chain = {
+        values: vi.fn().mockImplementation((v: { id?: string }) => {
+          lastValues = v ?? {}
+          return chain
+        }),
+        // `onConflictDoNothing()` must be both awaitable (the raw-row
+        // path just `await`s it) and chainable into `.returning()`
+        // (the fill path under H-03 needs a non-empty array to count
+        // as inserted). The thenable below satisfies both.
+        onConflictDoNothing: vi.fn().mockImplementation(() => ({
+          returning: vi.fn().mockResolvedValue(
+            lastValues.id ? [{ id: lastValues.id }] : [{ id: 'stub' }],
+          ),
+          then: (resolve: (v: unknown) => unknown) => resolve([]),
+        })),
+      }
+      return chain
+    }),
     update: vi.fn().mockImplementation(() => ({
       set: vi.fn().mockReturnThis(),
       where: vi.fn().mockResolvedValue([]),

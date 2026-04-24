@@ -373,19 +373,31 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
 
     // -----------------------------------------------------------------------
     // 9. Top findings — restrict to findings that reference any filtered position
+    // Push severity-ordered filter + limit into SQL; final slice(5) in JS acts
+    // as deterministic ordering fallback over the narrowed 25-row window.
     // -----------------------------------------------------------------------
     const ids = positionRows.map(r => r.id)
     let topFindingsRaw: (typeof finding.$inferSelect)[] = []
     if (ids.length > 0) {
-      // Find all findings where at least one of the filtered position IDs is referenced
-      // We fetch all findings for the user/version and filter in JS (avoids PG array overlap)
-      const allFindings = await db.select().from(finding).where(
-        and(eq(finding.userId, userId), eq(finding.derivationVersion, version)),
-      ).orderBy(desc(finding.createdAt))
+      const severityRank = sql`CASE ${finding.severity}
+        WHEN 'critical' THEN 0
+        WHEN 'warning' THEN 1
+        WHEN 'info' THEN 2
+        ELSE 3
+      END`
 
-      const idSet = new Set(ids)
-      topFindingsRaw = allFindings
-        .filter(f => f.referencedPositionIds.some(pid => idSet.has(pid)))
+      const narrowed = await db
+        .select()
+        .from(finding)
+        .where(and(
+          eq(finding.userId, userId),
+          eq(finding.derivationVersion, version),
+          sql`${finding.referencedPositionIds} && ARRAY[${sql.join(ids.map(id => sql`${id}::text`), sql`,`)}]::text[]`,
+        ))
+        .orderBy(severityRank, desc(finding.periodEnd))
+        .limit(25)
+
+      topFindingsRaw = narrowed
         .sort((a, b) => {
           const severityOrder = { critical: 0, warning: 1, info: 2 }
           const sA = severityOrder[a.severity] ?? 3

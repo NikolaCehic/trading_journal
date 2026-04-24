@@ -296,10 +296,14 @@ function PlanEditForm({
         {/* Symbol + Side */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+            <label
+              htmlFor={`plan-edit-symbol-${plan.id}`}
+              style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+            >
               Symbol <span style={{ color: 'var(--fg-subtle)' }}>*</span>
             </label>
             <input
+              id={`plan-edit-symbol-${plan.id}`}
               className="tj-input"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
@@ -307,11 +311,29 @@ function PlanEditForm({
               style={{ textTransform: 'uppercase' }}
             />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+          <fieldset
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              border: 0,
+              padding: 0,
+              margin: 0,
+              minInlineSize: 'auto',
+            }}
+          >
+            <legend
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--fg-muted)',
+                padding: 0,
+                marginBottom: 4,
+              }}
+            >
               Direction <span style={{ color: 'var(--fg-subtle)' }}>*</span>
-            </label>
-            <div style={{ paddingTop: 2 }}>
+            </legend>
+            <div style={{ paddingTop: 2 }} role="radiogroup" aria-label="Direction">
               <Segmented<'long' | 'short'>
                 value={intendedSide}
                 options={[
@@ -321,14 +343,20 @@ function PlanEditForm({
                 onChange={setIntendedSide}
               />
             </div>
-          </div>
+          </fieldset>
         </div>
 
         {/* Price fields */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Entry price</label>
+            <label
+              htmlFor={`plan-edit-entry-${plan.id}`}
+              style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+            >
+              Entry price
+            </label>
             <input
+              id={`plan-edit-entry-${plan.id}`}
               className="tj-input"
               type="number"
               step="any"
@@ -339,8 +367,14 @@ function PlanEditForm({
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Target price</label>
+            <label
+              htmlFor={`plan-edit-target-${plan.id}`}
+              style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+            >
+              Target price
+            </label>
             <input
+              id={`plan-edit-target-${plan.id}`}
               className="tj-input"
               type="number"
               step="any"
@@ -351,8 +385,14 @@ function PlanEditForm({
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Stop price</label>
+            <label
+              htmlFor={`plan-edit-stop-${plan.id}`}
+              style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+            >
+              Stop price
+            </label>
             <input
+              id={`plan-edit-stop-${plan.id}`}
               className="tj-input"
               type="number"
               step="any"
@@ -363,8 +403,14 @@ function PlanEditForm({
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Planned size</label>
+            <label
+              htmlFor={`plan-edit-size-${plan.id}`}
+              style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+            >
+              Planned size
+            </label>
             <input
+              id={`plan-edit-size-${plan.id}`}
               className="tj-input"
               type="number"
               step="any"
@@ -378,8 +424,14 @@ function PlanEditForm({
 
         {/* Rationale */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Rationale</label>
+          <label
+            htmlFor={`plan-edit-rationale-${plan.id}`}
+            style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}
+          >
+            Rationale
+          </label>
           <textarea
+            id={`plan-edit-rationale-${plan.id}`}
             className="tj-input"
             rows={5}
             value={rationale}

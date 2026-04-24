@@ -14,7 +14,7 @@ import { log } from '~/lib/log'
 import { z } from 'zod'
 
 const validateCsvInput = z.object({
-  csvContent: z.string().min(1),
+  csvContent: z.string().min(1).max(50 * 1024 * 1024),
   source: z.enum(['binance-csv', 'hyperliquid-csv', 'bybit-csv', 'okx-csv']),
 })
 
@@ -24,6 +24,7 @@ export const validateCsvImport = createServerFn({ method: 'POST' })
     const request = getRequest()
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) throw new Error('Unauthorized')
+    assertNotDemo(session.user)
 
     const adapter =
       data.source === 'binance-csv' ? new BinanceCsvAdapter() :
@@ -35,9 +36,9 @@ export const validateCsvImport = createServerFn({ method: 'POST' })
   })
 
 const startCsvImportInput = z.object({
-  csvContent: z.string().min(1),
+  csvContent: z.string().min(1).max(50 * 1024 * 1024),
   source: z.enum(['binance-csv', 'hyperliquid-csv', 'bybit-csv', 'okx-csv']),
-  fileName: z.string().optional(),
+  fileName: z.string().max(255).optional(),
 })
 
 export const startCsvImport = createServerFn({ method: 'POST' })

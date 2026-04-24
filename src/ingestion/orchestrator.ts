@@ -65,7 +65,10 @@ export class Orchestrator {
 
       const fillId = `fill_${userId}_${canonicalFill.exchange}_${canonicalFill.externalId}`.slice(0, 128)
       try {
-        await this.db.insert(fillTable).values({
+        // Data H-03: only increment fillCount when a row actually made it in.
+        // `onConflictDoNothing` silently skips duplicates, so we rely on the
+        // length of `.returning(...)` to detect whether an insert occurred.
+        const inserted = await this.db.insert(fillTable).values({
           id: fillId,
           userId,
           exchange: canonicalFill.exchange,
@@ -80,9 +83,9 @@ export class Orchestrator {
           externalId: canonicalFill.externalId,
           rawImportRowId: rawRowId,
           normalizerHint: canonicalFill.normalizerHint ?? null,
-        }).onConflictDoNothing()
+        }).onConflictDoNothing().returning({ id: fillTable.id })
 
-        fillCount++
+        if (inserted.length > 0) fillCount++
       } catch (err) {
         erroredCount++
         log.error('Failed to persist fill', { importId, externalId: canonicalFill.externalId, err: String(err) })

@@ -150,6 +150,11 @@ function buildMockDb(
     update: () => ({
       set: () => ({ where: () => Promise.resolve([]) }),
     }) as unknown as ReturnType<DB['update']>,
+    // persistDerivation bundles every write into a single `db.batch([...])`
+    // call (the neon-http-native equivalent of a transaction). For this mock
+    // we just resolve — the individual query builders above already return
+    // thenable-shaped results that satisfy the runner's other call sites.
+    batch: async (_ops: unknown[]) => [] as unknown[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as unknown as DB
 }
@@ -330,6 +335,10 @@ describe('runDerivation — custom detector wiring', () => {
       insert: () => insertChain as unknown as ReturnType<DB['insert']>,
       delete: () => deleteChain as unknown as ReturnType<DB['delete']>,
       update: () => updateChain as unknown as ReturnType<DB['update']>,
+      // persistDerivation now uses `db.batch([...])` (neon-http's atomic
+      // multi-query primitive). The insertChain above captures the finding
+      // rows before the batch dispatches, so we can just resolve here.
+      batch: async (_ops: unknown[]) => [] as unknown[],
     } as unknown as DB
 
     await runDerivation({ db, userId: 'u1', version: 4, now: new Date('2024-02-01') })

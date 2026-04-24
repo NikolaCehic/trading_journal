@@ -29,6 +29,7 @@ function CsvUploadCard() {
   const [result, setResult] = useState<{ fillCount: number; skippedCount: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   async function processFile(file: File) {
     setFileName(file.name)
@@ -59,16 +60,21 @@ function CsvUploadCard() {
   }
 
   const onConfirm = useCallback(async () => {
-    setStep('importing')
-    setError(null)
     try {
-      const res = await startCsvImport({ data: { csvContent, source } })
-      setResult({ fillCount: res.fillCount, skippedCount: res.skippedCount })
-      setStep('done')
-      await qc.invalidateQueries({ queryKey: ['import-history'] })
-    } catch (err) {
-      setError(String(err))
-      setStep('idle')
+      setIsConfirming(true)
+      setStep('importing')
+      setError(null)
+      try {
+        const res = await startCsvImport({ data: { csvContent, source } })
+        setResult({ fillCount: res.fillCount, skippedCount: res.skippedCount })
+        setStep('done')
+        await qc.invalidateQueries({ queryKey: ['import-history'] })
+      } catch (err) {
+        setError(String(err))
+        setStep('idle')
+      }
+    } finally {
+      setIsConfirming(false)
     }
   }, [csvContent, source, qc])
 
@@ -131,6 +137,9 @@ function CsvUploadCard() {
         {step === 'idle' && (
           <>
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload CSV file — click or press Enter to browse, or drag and drop"
               onDragOver={(e) => {
                 e.preventDefault()
                 setDragOver(true)
@@ -138,6 +147,12 @@ function CsvUploadCard() {
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
               onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  fileRef.current?.click()
+                }
+              }}
               style={{
                 padding: '40px 20px',
                 border: `1px dashed ${dragOver ? 'var(--accent)' : 'var(--border-hover)'}`,
@@ -146,6 +161,13 @@ function CsvUploadCard() {
                 background: dragOver ? 'var(--accent-weak)' : 'var(--bg-base)',
                 transition: 'all 150ms ease-out',
                 cursor: 'pointer',
+                outline: 'none',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.boxShadow = 'none'
               }}
             >
               <Icon name="upload" size={22} />
@@ -204,8 +226,13 @@ function CsvUploadCard() {
                 Cancel
               </button>
               {validation.valid && (
-                <button type="button" className="tj-btn tj-btn-primary tj-btn-sm" onClick={onConfirm}>
-                  Import {validation.rowCount} rows
+                <button
+                  type="button"
+                  className="tj-btn tj-btn-primary tj-btn-sm"
+                  onClick={onConfirm}
+                  disabled={isConfirming}
+                >
+                  {isConfirming ? 'Importing…' : `Import ${validation.rowCount} rows`}
                 </button>
               )}
             </div>
@@ -262,6 +289,7 @@ function HLWalletCard() {
   const [address, setAddress] = useState('')
   const [activeImportId, setActiveImportId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
 
   const { data: importStatus } = useQuery({
     queryKey: ['import-status', activeImportId],
@@ -277,17 +305,22 @@ function HLWalletCard() {
   const isRunning = activeImportId && importStatus?.status !== 'complete' && importStatus?.status !== 'failed'
 
   const onStart = useCallback(async () => {
-    setError(null)
-    if (!/^0x[0-9a-fA-F]{40}$/.test(address.trim())) {
-      setError('Invalid wallet address — must be 0x followed by 40 hex characters.')
-      return
-    }
     try {
-      const res = await startWalletImport({ data: { walletAddress: address.trim() } })
-      setActiveImportId(res.importId)
-      await qc.invalidateQueries({ queryKey: ['import-history'] })
-    } catch (err) {
-      setError(String(err))
+      setIsStarting(true)
+      setError(null)
+      if (!/^0x[0-9a-fA-F]{40}$/.test(address.trim())) {
+        setError('Invalid wallet address — must be 0x followed by 40 hex characters.')
+        return
+      }
+      try {
+        const res = await startWalletImport({ data: { walletAddress: address.trim() } })
+        setActiveImportId(res.importId)
+        await qc.invalidateQueries({ queryKey: ['import-history'] })
+      } catch (err) {
+        setError(String(err))
+      }
+    } finally {
+      setIsStarting(false)
     }
   }, [address, qc])
 
@@ -324,9 +357,9 @@ function HLWalletCard() {
                 type="button"
                 className="tj-btn tj-btn-primary"
                 onClick={onStart}
-                disabled={!address.trim()}
+                disabled={!address.trim() || isStarting}
               >
-                Fetch trades
+                {isStarting ? 'Starting…' : 'Fetch trades'}
               </button>
             </div>
             {error && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pnl-down)' }}>{error}</div>}

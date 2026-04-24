@@ -7,6 +7,7 @@ import { assertNotDemo } from '~/auth/assertNotDemo'
 import { db } from '~/db/client'
 import { digestRule } from '~/db/schema/narrator'
 import { finding } from '~/db/schema/derivation'
+import { DERIVATION_VERSION } from '~/derivation/version'
 
 const detectorIdSchema = z.string().min(1)
 
@@ -102,6 +103,7 @@ export const getRuleViolationsThisWeek = createServerFn({ method: 'GET' })
         and(
           eq(finding.userId, userId),
           eq(finding.detectorId, rule.detectorId),
+          eq(finding.derivationVersion, DERIVATION_VERSION),
         ),
       )
 

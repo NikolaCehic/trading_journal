@@ -1,10 +1,62 @@
 import { inngest } from './client'
-import { db } from '~/db/client'
+import { db as defaultDb, type DB } from '~/db/client'
 import { position } from '~/db/schema/derivation'
 import { tradePlan } from '~/db/schema/journal'
 import { and, eq, isNull, isNotNull } from 'drizzle-orm'
 import { matchPositionsToPlans, type MatchCandidate, type PlanCandidate } from '~/planMatcher/match'
 import { log } from '~/lib/log'
+
+/**
+ * Apply a single plan→position match.
+ *
+ * The UPDATE includes `planId IS NULL` in its WHERE clause (data H-02):
+ * if a manual link landed on the position between our fetch-phase select
+ * and this apply, the guard prevents us from silently overwriting it.
+ * An update that matched zero rows emits a warning and is treated as a no-op.
+ *
+ * Exported so the guard can be covered by a structural unit test.
+ */
+export async function applyMatchToPosition(
+  database: DB,
+  userId: string,
+  match: { positionId: string; planId: string },
+): Promise<{ applied: boolean }> {
+  const [plan] = await database
+    .select()
+    .from(tradePlan)
+    .where(eq(tradePlan.id, match.planId))
+    .limit(1)
+  if (!plan) return { applied: false } // plan removed between fetch and apply — skip
+
+  const updated = await database
+    .update(position)
+    .set({
+      planId: match.planId,
+      planSnapshotEntryPrice: plan.entryPrice,
+      planSnapshotStopPrice: plan.stopPrice,
+      planSnapshotTargetPrice: plan.targetPrice,
+      planSnapshotSize: plan.plannedSize,
+      planSnapshotRationale: plan.rationale,
+    })
+    .where(
+      and(
+        eq(position.id, match.positionId),
+        eq(position.userId, userId),
+        isNull(position.planId),
+      ),
+    )
+    .returning({ id: position.id })
+
+  if (updated.length === 0) {
+    log.warn('plan-auto-match: skipped — position linked between fetch and apply', {
+      userId,
+      positionId: match.positionId,
+      planId: match.planId,
+    })
+    return { applied: false }
+  }
+  return { applied: true }
+}
 
 export const autoMatchPlansFn = inngest.createFunction(
   {
@@ -21,7 +73,7 @@ export const autoMatchPlansFn = inngest.createFunction(
     //    Timestamps from neon-http arrive as strings — coerce to Date here so
     //    the pure matcher can call .getTime() on them.
     const positionRows = await step.run('fetch-positions', async () => {
-      const rows = await db
+      const rows = await defaultDb
         .select({
           id: position.id,
           symbol: position.symbol,
@@ -48,7 +100,7 @@ export const autoMatchPlansFn = inngest.createFunction(
 
     // 2. Load all the user's plans. Coerce timestamps to Date.
     const planRows = await step.run('fetch-plans', async () => {
-      const rows = await db
+      const rows = await defaultDb
         .select({
           id: tradePlan.id,
           symbol: tradePlan.symbol,
@@ -74,7 +126,7 @@ export const autoMatchPlansFn = inngest.createFunction(
     //    We use a plain string[] instead of Set so Inngest can serialise the
     //    step result as JSON; we convert back to Set after the step.
     const linkedPlanIdList = await step.run('fetch-linked-plan-ids', async () => {
-      const rows = await db
+      const rows = await defaultDb
         .select({ planId: position.planId })
         .from(position)
         .where(and(eq(position.userId, userId), isNotNull(position.planId)))
@@ -113,27 +165,11 @@ export const autoMatchPlansFn = inngest.createFunction(
     }
 
     // 5. Apply each match: write position.planId + snapshot columns
+    //    applyMatchToPosition carries the `planId IS NULL` guard (data H-02):
+    //    if a manual link landed between our fetch and apply, the update is a
+    //    no-op and we leave the manual value untouched.
     for (const m of matches) {
-      await step.run(`match-${m.positionId}`, async () => {
-        const [plan] = await db
-          .select()
-          .from(tradePlan)
-          .where(eq(tradePlan.id, m.planId))
-          .limit(1)
-        if (!plan) return // plan removed between fetch and apply — skip
-
-        await db
-          .update(position)
-          .set({
-            planId: m.planId,
-            planSnapshotEntryPrice: plan.entryPrice,
-            planSnapshotStopPrice: plan.stopPrice,
-            planSnapshotTargetPrice: plan.targetPrice,
-            planSnapshotSize: plan.plannedSize,
-            planSnapshotRationale: plan.rationale,
-          })
-          .where(and(eq(position.id, m.positionId), eq(position.userId, userId)))
-      })
+      await step.run(`match-${m.positionId}`, () => applyMatchToPosition(defaultDb, userId, m))
     }
 
     log.info('plan-auto-match: complete', { userId, matched: matches.length })

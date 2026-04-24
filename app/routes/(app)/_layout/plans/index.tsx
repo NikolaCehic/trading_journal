@@ -13,7 +13,7 @@ function PlansPage() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<ArchiveFilter>('active')
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['plans', filter],
     queryFn: () => listPlans({ data: { includeArchived: filter !== 'active' } }),
     staleTime: 30_000,
@@ -52,7 +52,23 @@ function PlansPage() {
       </div>
 
       {isLoading && <PlansSkeleton />}
-      {!isLoading && rows.length === 0 && (
+      {!isLoading && error && (
+        <div className="tj-card" role="alert" style={{ padding: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Couldn't load plans</div>
+          <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+            Something went wrong loading your plans. Try reloading.
+          </div>
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            style={{ marginTop: 12 }}
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      )}
+      {!isLoading && !error && rows.length === 0 && (
         <EmptyState
           icon="file"
           title={filter === 'archived' ? 'No archived plans.' : 'No plans yet.'}

@@ -70,15 +70,21 @@ function autoInterval(durationMs: number): CandleInterval {
   return '4h'
 }
 
-export const getBtcEquityContext = createServerFn({ method: 'POST' })
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        from: z.string().datetime(),
-        to: z.string().datetime(),
-      })
-      .parse(d),
+export const btcEquityContextInput = z
+  .object({
+    from: z.string().datetime(),
+    to: z.string().datetime(),
+  })
+  .refine(
+    (d) => {
+      const ms = new Date(d.to).getTime() - new Date(d.from).getTime()
+      return ms > 0 && ms <= 365 * 86_400_000
+    },
+    { message: 'Date range must be between 1 day and 365 days' },
   )
+
+export const getBtcEquityContext = createServerFn({ method: 'POST' })
+  .inputValidator((d: unknown) => btcEquityContextInput.parse(d))
   .handler(async ({ data }): Promise<Array<{ date: string; priceUsd: number }>> => {
     const session = await auth.api.getSession({ headers: getRequest().headers })
     if (!session?.user) throw new Error('Unauthorized')

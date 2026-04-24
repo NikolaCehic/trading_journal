@@ -15,7 +15,39 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
+  errorComponent: RootErrorBoundary,
 })
+
+function RootErrorBoundary({ error, reset }: { error: Error; reset?: () => void }) {
+  return (
+    <div role="alert" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+      <div className="tj-card" style={{ padding: 24, maxWidth: 480 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Something went wrong</h1>
+        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', marginBottom: 16 }}>
+          An unexpected error prevented this page from loading.
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            className="tj-btn tj-btn-primary"
+            onClick={() => window.location.reload()}
+          >
+            Reload page
+          </button>
+          {reset ? (
+            <button type="button" className="tj-btn tj-btn-sm" onClick={reset}>
+              Try again
+            </button>
+          ) : null}
+        </div>
+        <details style={{ marginTop: 16, fontSize: 12, color: 'var(--fg-faint)' }}>
+          <summary>Details</summary>
+          <pre>{error?.message ?? String(error)}</pre>
+        </details>
+      </div>
+    </div>
+  )
+}
 
 function RootDocument({ children }: { children: ReactNode }) {
   const [queryClient] = useState(

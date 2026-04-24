@@ -455,28 +455,53 @@ function DetectorEditForm({
       <div className="tj-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Name *</label>
-            <input className="tj-input" value={name} onChange={(e) => setName(e.target.value)} style={{ fontFamily: 'var(--font-mono)' }} required />
+            <label htmlFor="detector-edit-name" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Name *</label>
+            <input id="detector-edit-name" className="tj-input" value={name} onChange={(e) => setName(e.target.value)} style={{ fontFamily: 'var(--font-mono)' }} required />
             {name && !nameValid && <div style={{ fontSize: 11, color: 'var(--pnl-down)' }}>Only lowercase, numbers, _ or -</div>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Title *</label>
-            <input className="tj-input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <label htmlFor="detector-edit-title" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Title *</label>
+            <input id="detector-edit-title" className="tj-input" value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 320 }}>
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Severity</label>
-          <Segmented<'info' | 'warning' | 'critical'>
-            value={severity}
-            options={[{ value: 'info', label: 'Info' }, { value: 'warning', label: 'Warning' }, { value: 'critical', label: 'Critical' }]}
-            onChange={setSeverity}
-          />
-        </div>
+        <fieldset
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            maxWidth: 320,
+            border: 0,
+            padding: 0,
+            margin: 0,
+            minInlineSize: 'auto',
+          }}
+        >
+          <legend
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'var(--fg-muted)',
+              padding: 0,
+              marginBottom: 2,
+            }}
+          >
+            Severity
+          </legend>
+          <div role="radiogroup" aria-label="Severity">
+            <Segmented<'info' | 'warning' | 'critical'>
+              value={severity}
+              options={[{ value: 'info', label: 'Info' }, { value: 'warning', label: 'Warning' }, { value: 'critical', label: 'Critical' }]}
+              onChange={setSeverity}
+            />
+          </div>
+        </fieldset>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>Conditions *</label>
-          <PredicateGroupEditor group={root} depth={0} onChange={setRoot} />
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }} id="detector-edit-conditions-label">Conditions *</div>
+          <div role="group" aria-labelledby="detector-edit-conditions-label">
+            <PredicateGroupEditor group={root} depth={0} onChange={setRoot} />
+          </div>
         </div>
 
         <div style={{ padding: '12px 16px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 'var(--r-default)', fontSize: 13, color: 'var(--fg-muted)' }}>

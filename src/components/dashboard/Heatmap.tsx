@@ -59,7 +59,11 @@ export function Heatmap({ cells }: Props) {
         </div>
       ) : (
         <div style={{ padding: '14px 20px 18px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '36px repeat(24, 1fr)', gap: 2, alignItems: 'center' }}>
+          <div
+            role="grid"
+            aria-label="Trade heatmap by day of week and hour"
+            style={{ display: 'grid', gridTemplateColumns: '36px repeat(24, 1fr)', gap: 2, alignItems: 'center' }}
+          >
             <div />
             {Array.from({ length: 24 }).map((_, h) => (
               <div
@@ -84,8 +88,19 @@ export function Heatmap({ cells }: Props) {
                   return (
                     <div
                       key={h}
+                      tabIndex={0}
+                      role="gridcell"
+                      aria-label={`${cell.day} ${cell.hour.toString().padStart(2, '0')}:00 UTC — ${cell.trades} trades, ${fmtUSD(cell.pnl, { showPlus: true })}`}
                       onMouseEnter={() => setHover(cell)}
                       onMouseLeave={() => setHover(null)}
+                      onFocus={(e) => {
+                        setHover(cell)
+                        e.currentTarget.style.boxShadow = '0 0 0 2px var(--focus-ring, rgba(59,130,246,0.6))'
+                      }}
+                      onBlur={(e) => {
+                        setHover(null)
+                        e.currentTarget.style.boxShadow = 'none'
+                      }}
                       style={{
                         height: 22,
                         background: color(cell.pnl),

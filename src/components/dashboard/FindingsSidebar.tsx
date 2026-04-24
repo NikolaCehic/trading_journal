@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Card, FindingCard, SeverityDot } from '~/components/tj/primitives'
 import type { DashboardFinding } from '~/domain/dashboard'
 import type { FindingSeverity } from '~/domain/finding'
@@ -48,11 +49,13 @@ export function FindingsSidebar({ findings }: Props) {
     mutationFn: () =>
       adoptRule({ data: { detectorId: 'revenge_trading', ruleText: RULE_TEXT } }),
     onSuccess: (res) => setAdoptedRuleId(res.ruleId),
+    onError: (err) => toast.error('Failed to save rule: ' + String(err)),
   })
 
   const archive = useMutation({
     mutationFn: (ruleId: string) => archiveRule({ data: { ruleId } }),
     onSuccess: () => setAdoptedRuleId(null),
+    onError: (err) => toast.error('Failed to save rule: ' + String(err)),
   })
 
   const violationsQuery = useQuery({

@@ -78,10 +78,11 @@ function NewPlanPage() {
           {/* Symbol + Side row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+              <label htmlFor="plan-new-symbol" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
                 Symbol <span style={{ color: 'var(--fg-subtle)' }}>*</span>
               </label>
               <input
+                id="plan-new-symbol"
                 className="tj-input"
                 placeholder="e.g. BTC"
                 value={symbol}
@@ -94,11 +95,29 @@ function NewPlanPage() {
                 Enter the ticker, e.g. BTC, ETH, SOL
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+            <fieldset
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                border: 0,
+                padding: 0,
+                margin: 0,
+                minInlineSize: 'auto',
+              }}
+            >
+              <legend
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: 'var(--fg-muted)',
+                  padding: 0,
+                  marginBottom: 4,
+                }}
+              >
                 Direction <span style={{ color: 'var(--fg-subtle)' }}>*</span>
-              </label>
-              <div style={{ paddingTop: 2 }}>
+              </legend>
+              <div style={{ paddingTop: 2 }} role="radiogroup" aria-label="Direction">
                 <Segmented<'long' | 'short'>
                   value={intendedSide}
                   options={[
@@ -108,16 +127,17 @@ function NewPlanPage() {
                   onChange={setIntendedSide}
                 />
               </div>
-            </div>
+            </fieldset>
           </div>
 
           {/* Price fields — 2 column grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+              <label htmlFor="plan-new-entry" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
                 Entry price
               </label>
               <input
+                id="plan-new-entry"
                 className="tj-input"
                 type="number"
                 step="any"
@@ -131,10 +151,11 @@ function NewPlanPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+              <label htmlFor="plan-new-target" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
                 Target price
               </label>
               <input
+                id="plan-new-target"
                 className="tj-input"
                 type="number"
                 step="any"
@@ -148,10 +169,11 @@ function NewPlanPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+              <label htmlFor="plan-new-stop" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
                 Stop price
               </label>
               <input
+                id="plan-new-stop"
                 className="tj-input"
                 type="number"
                 step="any"
@@ -165,10 +187,11 @@ function NewPlanPage() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+              <label htmlFor="plan-new-size" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
                 Planned size
               </label>
               <input
+                id="plan-new-size"
                 className="tj-input"
                 type="number"
                 step="any"
@@ -185,10 +208,11 @@ function NewPlanPage() {
 
           {/* Rationale */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
+            <label htmlFor="plan-new-rationale" style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>
               Rationale
             </label>
             <textarea
+              id="plan-new-rationale"
               className="tj-input"
               rows={5}
               placeholder="Why are you taking this trade? What's the setup? What would invalidate it?"

@@ -80,7 +80,6 @@ export const Route = createFileRoute('/api/demo')({
   server: {
     handlers: {
       POST: ({ request }) => mintDemoSession(request),
-      GET: ({ request }) => mintDemoSession(request), // allow GET for easy anchor-tag linking
     },
   },
 })
