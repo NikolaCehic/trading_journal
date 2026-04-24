@@ -83,12 +83,23 @@
 
 ---
 
-### I-06 · [VERIFY] Env keys are optional; dev-mode detection is implicit
+### I-06 · [FIXED] SDK's dev-mode auto-detection was unreliable — `inngest.send()` threw "couldn't find an event key"
 
-- **Files:** `src/lib/env.ts:11–12`, `.env.local`
-- **Setup:** `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are `z.string().min(1).optional()` and may resolve to `undefined`. Inngest v4 SDK auto-detects dev mode when no event key is set and uses `http://localhost:8288` as the event-send target.
-- **Verify:** after I-01 fix, run `pnpm inngest:dev` + `pnpm dev`, hit `/api/inngest` → functions registered. Then POST a fake event to Inngest dev UI (or trigger a real wallet import) and confirm the run appears in `http://localhost:8288/runs`. If events never show up in the dev server, the SDK is not auto-detecting dev mode — at that point set `INNGEST_DEV=1` explicitly in `.env.local` to force it.
-- **Follow-up:** if you confirm `INNGEST_DEV=1` is needed, add a comment to `.env.local` template documenting it, and optionally add `INNGEST_DEV` to `env.ts` with `z.enum(['0','1']).default('1')` so it's declared.
+- **Files:** `src/jobs/client.ts`, `src/lib/env.ts:11–12`
+- **Original assumption (wrong):** Inngest v4 SDK auto-detects dev mode when no event key is provided and targets `http://localhost:8288`.
+- **Actual behavior:** SDK v4 validates the event key presence before sending regardless of dev/prod inference. With `INNGEST_EVENT_KEY=` empty (→ `undefined` via `emptyStringAsUndefined: true`), `inngest.send()` threw: `"Your event or events were not sent to Inngest. We couldn't find an event key..."`. HL wallet import failed at the `sendHLWalletPull(...)` step.
+- **Fix applied (in `src/jobs/client.ts`):** Pass `isDev: env.NODE_ENV !== 'production'` to the client, and default missing keys to local-dev placeholder strings when `isDev` is true. In production, missing keys still resolve to `undefined` as before (fail-loud).
+  ```ts
+  const isDev = env.NODE_ENV !== 'production'
+  export const inngest = new Inngest({
+    id: 'trade-journal',
+    eventKey: env.INNGEST_EVENT_KEY ?? (isDev ? 'local-dev-event-key' : undefined),
+    signingKey: env.INNGEST_SIGNING_KEY ?? (isDev ? 'signkey-local-dev-0000…' : undefined),
+    isDev,
+  })
+  ```
+- **Why placeholder strings work:** the Inngest dev server accepts any non-empty string for both keys. In dev, the placeholders satisfy the SDK's presence check; `isDev: true` redirects the event-send target to `http://localhost:8288`.
+- **Verification for QA:** after restarting `pnpm dev` with the change, a wallet import progresses past `pending`, a run appears in the Inngest dev UI at `/runs`.
 
 ---
 
@@ -139,11 +150,11 @@
 
 ## Recommended fix order for the QA agent
 
-1. **I-01** — already fixed in this pass; just verify steps in the Verification section above.
-2. **I-02** — small, contained, closes a real UX papercut (stuck pending row on send failure).
-3. **I-04** — small helper change, improves operator visibility.
-4. **I-03** — one-line concurrency config change.
-5. **I-06** — verify current behavior works; add `INNGEST_DEV=1` only if needed.
+1. **I-01** — already fixed; verify steps in the Verification section above.
+2. **I-06** — already fixed; verify an event actually makes it to the dev server (`/runs` tab).
+3. **I-02** — small, contained, closes a real UX papercut (stuck pending row on send failure).
+4. **I-04** — small helper change, improves operator visibility.
+5. **I-03** — one-line concurrency config change.
 6. **I-10** — one grep; strictly defensive.
 7. **I-05** — larger refactor; do last or defer to a separate phase.
 8. **I-07, I-08, I-09** — `[VERIFY]` only; read, confirm current state, act only if the described failure mode is reproducible.
