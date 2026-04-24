@@ -15,6 +15,7 @@ import { getTradeCoach } from '~/server/coach'
 import { CoachNarrative } from '~/components/trades/CoachNarrative'
 import { getCandlesForPosition } from '~/server/market'
 import { INTERVAL_MS, type Candle, type CandleInterval } from '~/domain/candle'
+import { toastError } from '~/lib/toastError'
 
 export const Route = createFileRoute('/(app)/_layout/trades/$positionId')({
   component: TradeDetailPage,
@@ -173,7 +174,7 @@ function PlanChip({
       setPicking(false)
       toast.success('Linked to plan')
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to link plan' }),
   })
   const unlink = useMutation({
     mutationFn: () => unlinkPositionFromPlan({ data: { positionId } }),
@@ -181,7 +182,7 @@ function PlanChip({
       qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] })
       toast.success('Unlinked from plan')
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to unlink plan' }),
   })
 
   if (bundle.linkedPlan) {
@@ -594,7 +595,7 @@ function NotesTab({ note, positionId }: { note: TradeDetailBundle['note']; posit
       setSavedAt(new Date())
       qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] })
     },
-    onError: (err) => { setSaving(false); toast.error('Failed to save note: ' + String(err)) },
+    onError: (err) => { setSaving(false); toastError(err, { prefix: 'Failed to save note' }) },
   })
 
   latestSave.current = async (v: string) => { await mutation.mutateAsync(v) }
@@ -797,7 +798,7 @@ function TagsTab({ bundle, positionId }: { bundle: TradeDetailBundle; positionId
       mistakeTagId: p.kind === 'mistake' ? p.tagId : undefined,
     }}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] }),
-    onError: (err) => toast.error('Failed: ' + String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to apply tag' }),
   })
 
   const remove = useMutation({
@@ -807,13 +808,13 @@ function TagsTab({ bundle, positionId }: { bundle: TradeDetailBundle; positionId
       mistakeTagId: p.kind === 'mistake' ? p.tagId : undefined,
     }}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] }),
-    onError: (err) => toast.error('Failed: ' + String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to remove tag' }),
   })
 
   const create = useMutation({
     mutationFn: (p: { kind: 'setup' | 'mistake'; label: string }) => createTag({ data: p }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tradeDetail', positionId] }),
-    onError: (err) => toast.error('Failed: ' + String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to create tag' }),
   })
 
   return (

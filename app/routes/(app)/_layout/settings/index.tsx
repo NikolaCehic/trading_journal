@@ -8,6 +8,7 @@ import { exportAllData } from '~/server/exportData'
 import { downloadFile } from '~/lib/csv'
 import { Card } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { toastError } from '~/lib/toastError'
 
 export const Route = createFileRoute('/(app)/_layout/settings/')({ component: SettingsPage })
 
@@ -22,7 +23,7 @@ function SettingsPage() {
     onSuccess: (r: { ok: boolean; enabled: boolean }) => {
       toast.success(r.enabled ? 'Weekly digest enabled' : 'Weekly digest disabled')
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toastError(e, { prefix: 'Failed to update digest' }),
   })
 
   const [exportPending, setExportPending] = useState(false)
@@ -35,7 +36,7 @@ function SettingsPage() {
       downloadFile(name, JSON.stringify(bundle, null, 2), 'application/json')
       toast.success('Export downloaded')
     } catch (e) {
-      toast.error('Export failed: ' + String(e))
+      toastError(e, { prefix: 'Export failed' })
     } finally {
       setExportPending(false)
     }

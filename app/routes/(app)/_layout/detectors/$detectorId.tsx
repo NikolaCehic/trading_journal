@@ -11,6 +11,7 @@ import {
 import { previewCustomDetector } from '~/server/customDetectorsPreview'
 import { Segmented } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { toastError } from '~/lib/toastError'
 import type { PositionPredicate, UserDetectorDefinition } from '~/domain/userDetector'
 import {
   type Composition,
@@ -439,7 +440,7 @@ function DetectorEditForm({
       queryClient.invalidateQueries({ queryKey: ['detectors'] })
       onSaved()
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to save detector' }),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -554,7 +555,7 @@ function DetectorDetailPage() {
     },
     onError: (err, _v, ctx) => {
       queryClient.setQueryData(['detector', detectorId], ctx?.prev)
-      toast.error(String(err))
+      toastError(err, { prefix: 'Failed to toggle detector' })
     },
     onSuccess: (r) => {
       toast.success(r.enabled ? 'Detector enabled' : 'Detector disabled')
@@ -568,7 +569,7 @@ function DetectorDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['detectors'] })
       navigate({ to: '/detectors' })
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to delete detector' }),
   })
 
   function handleDelete() {

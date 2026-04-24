@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { previewDigest, sendDigestNow, type DigestPreview } from '~/server/digestPreview'
 import { Icon } from '~/components/tj/Icon'
+import { toastError } from '~/lib/toastError'
 
 export const Route = createFileRoute('/(app)/_layout/digest/')({
   component: DigestPage,
@@ -111,7 +112,7 @@ function PreviewBody({ data }: { data: DigestPreview }) {
   const send = useMutation({
     mutationFn: () => sendDigestNow(),
     onSuccess: () => toast.success('Digest email queued. Check your inbox in a minute.'),
-    onError: (err) => toast.error('Could not send: ' + String(err)),
+    onError: (err) => toastError(err, { prefix: "Couldn't send digest" }),
   })
 
   return (

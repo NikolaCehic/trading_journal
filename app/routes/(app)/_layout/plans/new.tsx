@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { createPlan } from '~/server/plans'
 import { Segmented } from '~/components/tj/primitives'
+import { toastError } from '~/lib/toastError'
 
 const searchSchema = z.object({
   symbol: z.string().optional(),
@@ -47,7 +48,7 @@ function NewPlanPage() {
       queryClient.invalidateQueries({ queryKey: ['plans'] })
       navigate({ to: '/plans/$planId', params: { planId: r.id } })
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to create plan' }),
   })
 
   function handleSubmit(e: React.FormEvent) {

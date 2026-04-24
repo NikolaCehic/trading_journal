@@ -8,6 +8,7 @@ import { EmptyState } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 import { Modal } from '~/components/tj/Modal'
 import { downloadFile } from '~/lib/csv'
+import { toastError } from '~/lib/toastError'
 
 export const Route = createFileRoute('/(app)/_layout/detectors/')({ component: DetectorsPage })
 
@@ -135,7 +136,7 @@ function DetectorsPage() {
     },
     onError: (err, _v, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(['builtin-detector-settings'], ctx.prev)
-      toast.error(String(err))
+      toastError(err, { prefix: 'Failed to update detector' })
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['builtin-detector-settings'] }),
   })
@@ -155,7 +156,7 @@ function DetectorsPage() {
     },
     onError: (err, _id, ctx) => {
       queryClient.setQueryData(['detectors'], ctx?.prev)
-      toast.error(String(err))
+      toastError(err, { prefix: 'Failed to delete detector' })
     },
     onSuccess: () => {
       toast.success('Detector deleted')
@@ -176,7 +177,7 @@ function DetectorsPage() {
     },
     onError: (err, _vars, ctx) => {
       queryClient.setQueryData(['detectors'], ctx?.prev)
-      toast.error(String(err))
+      toastError(err, { prefix: 'Failed to toggle detector' })
     },
     onSuccess: (_, vars) => toast.success(vars.enabled ? 'Detector enabled' : 'Detector disabled'),
   })
@@ -421,7 +422,7 @@ function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b:
       }
       if (r.errors.length > 0) toast.error(`${r.errors.length} error${r.errors.length === 1 ? '' : 's'}`)
     },
-    onError: (err) => toast.error('Import failed: ' + String(err)),
+    onError: (err) => toastError(err, { prefix: 'Import failed' }),
   })
 
   function parseAndImport() {
@@ -436,7 +437,7 @@ function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b:
       }
       mutation.mutate(detectors)
     } catch (err) {
-      toast.error('Invalid JSON: ' + String(err))
+      toastError(err, { prefix: 'Invalid JSON' })
     }
   }
 

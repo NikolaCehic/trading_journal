@@ -6,6 +6,7 @@ import { createCustomDetector } from '~/server/customDetectors'
 import { previewCustomDetector } from '~/server/customDetectorsPreview'
 import { Segmented } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { toastError } from '~/lib/toastError'
 import type { PositionPredicate } from '~/domain/userDetector'
 import {
   type Composition,
@@ -439,7 +440,7 @@ function NewDetectorPage() {
       queryClient.invalidateQueries({ queryKey: ['detectors'] })
       navigate({ to: '/detectors/$detectorId', params: { detectorId: r.id } })
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to create detector' }),
   })
 
   function handleSubmit(e: React.FormEvent) {

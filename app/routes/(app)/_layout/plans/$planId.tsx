@@ -8,6 +8,7 @@ import { getPlan, updatePlan, archivePlan } from '~/server/plans'
 import { getPositionsByIds } from '~/server/trades'
 import { SidePill, Segmented, fmtNum } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
+import { toastError } from '~/lib/toastError'
 
 export const Route = createFileRoute('/(app)/_layout/plans/$planId')({
   component: PlanDetailPage,
@@ -41,7 +42,7 @@ function PlanDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['plan', planId] })
       queryClient.invalidateQueries({ queryKey: ['plans'] })
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to update plan' }),
   })
 
   if (isLoading) return <PlanSkeleton />
@@ -275,7 +276,7 @@ function PlanEditForm({
       toast.success('Plan updated')
       onSaved()
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => toastError(err, { prefix: 'Failed to save plan' }),
   })
 
   function handleSubmit(e: React.FormEvent) {
