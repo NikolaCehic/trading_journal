@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { previewDigest, sendDigestNow, type DigestPreview } from '~/server/digestPreview'
@@ -25,6 +25,15 @@ function DigestPage() {
         <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginTop: 4 }}>
           Preview this week&apos;s digest — exactly what ships Sunday at 22:00.
         </div>
+      </div>
+
+      <div className="tj-card" style={{ padding: 16, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, margin: 0 }}>Your weekly digest</h2>
+        <p style={{ fontSize: 13, color: 'var(--fg-subtle)', margin: 0, marginTop: 6 }}>
+          Every Sunday at 22:00 in your timezone, we email you the week&apos;s findings,
+          your adopted rules, and a short coach narrative based on this preview.
+          Toggle email delivery in <Link to="/settings" style={{ color: 'var(--accent)' }}>Settings</Link>.
+        </p>
       </div>
 
       {isLoading && <PreviewSkeleton />}
