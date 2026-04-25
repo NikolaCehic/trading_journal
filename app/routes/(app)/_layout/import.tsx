@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { Icon } from '~/components/tj/Icon'
@@ -26,7 +26,7 @@ function CsvUploadCard() {
   const [csvContent, setCsvContent] = useState('')
   const [fileName, setFileName] = useState('')
   const [step, setStep] = useState<'idle' | 'validating' | 'confirming' | 'importing' | 'done'>('idle')
-  const [result, setResult] = useState<{ fillCount: number; skippedCount: number } | null>(null)
+  const [result, setResult] = useState<{ fillCount: number; skippedCount: number; importId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
@@ -66,7 +66,7 @@ function CsvUploadCard() {
       setError(null)
       try {
         const res = await startCsvImport({ data: { csvContent, source } })
-        setResult({ fillCount: res.fillCount, skippedCount: res.skippedCount })
+        setResult({ fillCount: res.fillCount, skippedCount: res.skippedCount, importId: res.importId })
         setStep('done')
         await qc.invalidateQueries({ queryKey: ['import-history'] })
       } catch (err) {
@@ -272,6 +272,35 @@ function CsvUploadCard() {
                 <span style={{ color: 'var(--fg-muted)', marginLeft: 6 }}>({result.skippedCount} skipped)</span>
               )}
             </div>
+            <div
+              className="tj-card"
+              role="status"
+              style={{
+                padding: 16,
+                marginTop: 12,
+                background: 'var(--accent-weak, rgba(234, 88, 12, 0.1))',
+                borderColor: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div style={{ fontSize: 14 }}>
+                <strong>Imported {result.fillCount} fills</strong>
+                {result.skippedCount > 0 && ` · skipped ${result.skippedCount}`}
+                <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>
+                  Positions are being derived. Trades will appear within a few seconds.
+                </div>
+              </div>
+              <Link
+                to="/trades"
+                search={result.importId ? { importId: result.importId } : undefined}
+                className="tj-btn tj-btn-primary"
+              >
+                View trades →
+              </Link>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
               <button type="button" className="tj-btn tj-btn-sm" onClick={onReset}>
                 Import another file
@@ -288,6 +317,7 @@ function HLWalletCard() {
   const qc = useQueryClient()
   const [address, setAddress] = useState('')
   const [activeImportId, setActiveImportId] = useState<string | null>(null)
+  const [importStatusState, setImportStatusState] = useState<{ kind: 'started'; importId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStarting, setIsStarting] = useState(false)
 
@@ -315,6 +345,7 @@ function HLWalletCard() {
       try {
         const res = await startWalletImport({ data: { walletAddress: address.trim() } })
         setActiveImportId(res.importId)
+        setImportStatusState({ kind: 'started', importId: res.importId })
         await qc.invalidateQueries({ queryKey: ['import-history'] })
       } catch (err) {
         setError(String(err))
@@ -326,6 +357,7 @@ function HLWalletCard() {
 
   const onReset = () => {
     setActiveImportId(null)
+    setImportStatusState(null)
     setAddress('')
     setError(null)
   }
@@ -413,6 +445,36 @@ function HLWalletCard() {
               )}
               {importStatus.status === 'failed' && <span>Import failed: {importStatus.errorMessage ?? 'Unknown error'}</span>}
             </div>
+            {importStatusState?.kind === 'started' && (
+              <div
+                className="tj-card"
+                role="status"
+                style={{
+                  padding: 16,
+                  marginTop: 12,
+                  background: 'var(--accent-weak, rgba(234, 88, 12, 0.1))',
+                  borderColor: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div style={{ fontSize: 14 }}>
+                  <strong>Started import</strong>
+                  <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginTop: 4 }}>
+                    Fetching from Hyperliquid. Trades will appear as fills land — minutes for active wallets.
+                  </div>
+                </div>
+                <Link
+                  to="/trades"
+                  search={{ importId: importStatusState.importId }}
+                  className="tj-btn tj-btn-primary"
+                >
+                  View trades →
+                </Link>
+              </div>
+            )}
             {!isRunning && (
               <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
                 <button type="button" className="tj-btn tj-btn-sm" onClick={onReset}>
@@ -428,6 +490,7 @@ function HLWalletCard() {
 }
 
 function ImportHistory() {
+  const navigate = useNavigate()
   const { data: history = [] } = useQuery({
     queryKey: ['import-history'],
     queryFn: () => getImportHistory(),
@@ -464,7 +527,19 @@ function ImportHistory() {
         </thead>
         <tbody>
           {history.map((r) => (
-            <tr key={r.id}>
+            <tr
+              key={r.id}
+              role="button"
+              tabIndex={0}
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate({ to: '/trades', search: { importId: r.id } })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  navigate({ to: '/trades', search: { importId: r.id } })
+                }
+              }}
+            >
               <td
                 style={{
                   paddingLeft: 20,
