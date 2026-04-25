@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { KpiTile, Segmented, Card, fmtUSD, EmptyState } from '~/components/tj/primitives'
+import { KpiTile, Segmented, Card, fmtUSD } from '~/components/tj/primitives'
 import { Icon } from '~/components/tj/Icon'
 import { EquityCurve } from '~/components/dashboard/EquityCurve'
 import { AssetBreakdown } from '~/components/dashboard/AssetBreakdown'
@@ -111,6 +111,12 @@ function DashboardPage() {
 
   return (
     <div className="tj-main">
+      <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, marginBottom: 16 }}>
+        Dashboard
+        <span style={{ fontSize: 13, color: 'var(--fg-subtle)', marginLeft: 12, fontWeight: 400 }}>
+          {timeRangeLabel(filters.timeRange)}
+        </span>
+      </h1>
       {/* Controls row — always visible */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -180,18 +186,32 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Empty state — no trades imported yet */}
-      {!isLoading && !error && bundle && bundle.meta.totalFillCount === 0 && (
-        <EmptyState
-          icon="upload"
-          title="Import your first trades"
-          description="Upload a Binance CSV or paste a Hyperliquid wallet address."
-          cta={
-            <Link to="/import" className="tj-btn tj-btn-primary" style={{ textDecoration: 'none' }}>
-              Go to Import
-            </Link>
-          }
-        />
+      {/* Empty state — no trades imported yet: 3-step setup checklist */}
+      {!isLoading && !error && bundle && bundle.summary.tradeCount === 0 && (
+        <div className="tj-card" style={{ padding: 24, marginBottom: 24 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Welcome to Trade Journal</h2>
+          <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--accent)' }}>✓</span>
+              <span style={{ color: 'var(--fg-muted)' }}>Sign in</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--fg-subtle)' }}>·</span>
+                <span>Import your first trades — CSV or Hyperliquid wallet</span>
+              </div>
+              <Link to="/import" className="tj-btn tj-btn-primary tj-btn-sm">Go to Import →</Link>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-faint)' }}>
+              <span>·</span>
+              <span>Review your first finding — appears once derivation finishes</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-faint)' }}>
+              <span>·</span>
+              <span>Adopt your first rule — appears next to each finding</span>
+            </li>
+          </ol>
+        </div>
       )}
 
       {/* Main dashboard — only when data is loaded and there are trades */}
