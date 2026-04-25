@@ -19,9 +19,9 @@ function DigestPage() {
   return (
     <div className="tj-main">
       <div>
-        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)', margin: 0 }}>
           Digest
-        </div>
+        </h1>
         <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginTop: 4 }}>
           Preview this week&apos;s digest — exactly what ships Sunday at 22:00.
         </div>

@@ -525,9 +525,9 @@ function NewDetectorPage() {
   return (
     <div className="tj-main">
       <div>
-        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)', margin: 0 }}>
           New detector
-        </div>
+        </h1>
         <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginTop: 4 }}>
           Define a rule that flags trades matching specific conditions.
         </div>
