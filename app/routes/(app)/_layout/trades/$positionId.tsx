@@ -13,6 +13,7 @@ import { upsertTradeNote, applyPositionTag, removePositionTag, createTag } from 
 import { linkPositionToPlan, unlinkPositionFromPlan } from '~/server/plans'
 import { getTradeCoach } from '~/server/coach'
 import { CoachNarrative } from '~/components/trades/CoachNarrative'
+import { CoachCard } from '~/components/trades/CoachCard'
 import { getCandlesForPosition } from '~/server/market'
 import { INTERVAL_MS, type Candle, type CandleInterval } from '~/domain/candle'
 import { toastError } from '~/lib/toastError'
@@ -86,6 +87,10 @@ function TradeDetailPage() {
       <PositionHeader bundle={bundle} positionId={positionId} />
       <MetricChipsRow bundle={bundle} />
       <AdherenceChipsRow bundle={bundle} />
+      <CoachCard
+        positionId={positionId}
+        onReadFull={() => setTab('Coach')}
+      />
       <TabBar
         tab={tab}
         setTab={setTab}
