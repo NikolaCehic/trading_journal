@@ -7,6 +7,7 @@ import { EquityCurve } from '~/components/dashboard/EquityCurve'
 import { AssetBreakdown } from '~/components/dashboard/AssetBreakdown'
 import { FindingsSidebar } from '~/components/dashboard/FindingsSidebar'
 import { Heatmap } from '~/components/dashboard/Heatmap'
+import { InsightCard } from '~/components/dashboard/InsightCard'
 import { getDashboardBundle } from '~/server/dashboard'
 import { getBtcEquityContext } from '~/server/market'
 import { useDashboardFilters } from '~/hooks/useDashboardFilters'
@@ -212,6 +213,14 @@ function DashboardPage() {
             </li>
           </ol>
         </div>
+      )}
+
+      {/* Insight card — visible to users with trades */}
+      {!isLoading && !error && bundle && bundle.summary.tradeCount > 0 && (
+        <InsightCard
+          latestDigestSummary={bundle.latestDigestSummary}
+          userHasTrades={true}
+        />
       )}
 
       {/* Main dashboard — only when data is loaded and there are trades */}
