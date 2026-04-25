@@ -53,81 +53,101 @@ function SettingsPage() {
         </div>
       </div>
 
-      <Card title="Account" subtitle="read-only">
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <SettingRow label="Email" value={u?.email ?? '—'} />
-          <SettingRow label="Timezone" value={u?.timezone ?? 'UTC'} hint="Detected from your browser" />
-          {u?.isDemo && (
-            <div
-              style={{
-                padding: 10,
-                background: 'var(--amber-weak)',
-                border: '1px solid rgba(217,119,6,0.28)',
-                borderRadius: 6,
-                fontSize: 12,
-                color: '#fbbf24',
-              }}
-            >
-              Demo mode — writes are disabled.
-            </div>
-          )}
-        </div>
-      </Card>
+      <section style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Account
+        </h2>
+        <Card title="Account" subtitle="read-only">
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <SettingRow label="Email" value={u?.email ?? '—'} />
+            <SettingRow label="Timezone" value={u?.timezone ?? 'UTC'} hint="Detected from your browser" />
+            {u?.isDemo && (
+              <div
+                style={{
+                  padding: 10,
+                  background: 'var(--amber-weak)',
+                  border: '1px solid rgba(217,119,6,0.28)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: '#fbbf24',
+                }}
+              >
+                Demo mode — writes are disabled.
+              </div>
+            )}
+          </div>
+        </Card>
+      </section>
 
-      <Card title="Digest" subtitle="weekly email">
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <ToggleRow
-            label="Send weekly digest email"
-            description="Delivered Sunday around 22:00 local. Biggest win, biggest mistake, top finding, one thing to try."
-            checked={u?.digestEnabled ?? true}
-            disabled={u?.isDemo}
-            onChange={(v) => toggleDigest.mutate(v)}
-          />
-        </div>
-      </Card>
+      <section style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Notifications
+        </h2>
+        <Card title="Digest" subtitle="weekly email">
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <ToggleRow
+              label="Send weekly digest email"
+              description="Delivered Sunday around 22:00 local. Biggest win, biggest mistake, top finding, one thing to try."
+              checked={u?.digestEnabled ?? true}
+              disabled={u?.isDemo}
+              onChange={(v) => toggleDigest.mutate(v)}
+            />
+          </div>
+        </Card>
+      </section>
 
-      <Card title="Export" subtitle="all your data, as JSON">
-        <div
-          style={{
-            padding: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 14,
-          }}
-        >
+      <section style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Data
+        </h2>
+        <Card title="Export" subtitle="all your data, as JSON">
           <div
             style={{
-              fontSize: 13,
-              color: 'var(--fg-muted)',
-              maxWidth: 440,
-              lineHeight: 1.5,
+              padding: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 14,
             }}
           >
-            Download everything we store about you: positions, fills, notes, tags, findings, rules,
-            imports. No lock-in.
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--fg-muted)',
+                maxWidth: 440,
+                lineHeight: 1.5,
+              }}
+            >
+              Download everything we store about you: positions, fills, notes, tags, findings, rules,
+              imports. No lock-in.
+            </div>
+            <button
+              type="button"
+              className="tj-btn tj-btn-primary"
+              onClick={doExport}
+              disabled={exportPending}
+            >
+              <Icon name="file" size={12} /> {exportPending ? 'Exporting…' : 'Download export'}
+            </button>
           </div>
-          <button
-            type="button"
-            className="tj-btn tj-btn-primary"
-            onClick={doExport}
-            disabled={exportPending}
-          >
-            <Icon name="file" size={12} /> {exportPending ? 'Exporting…' : 'Download export'}
-          </button>
-        </div>
-      </Card>
+        </Card>
+      </section>
 
-      <Card title="Custom detectors" subtitle="define your own patterns">
-        <div style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
-          <div style={{ fontSize: 13, color: 'var(--fg-muted)', maxWidth: 440, lineHeight: 1.5 }}>
-            Write rules that flag trades when specific conditions hold — "Friday BTC losses," "FOMO entries after a losing streak," anything the built-ins don't catch.
+      <section>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Detectors
+        </h2>
+        <Card title="Custom detectors" subtitle="define your own patterns">
+          <div style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+            <div style={{ fontSize: 13, color: 'var(--fg-muted)', maxWidth: 440, lineHeight: 1.5 }}>
+              Write rules that flag trades when specific conditions hold — "Friday BTC losses," "FOMO entries after a losing streak," anything the built-ins don't catch.
+            </div>
+            <Link to="/detectors" className="tj-btn" style={{ textDecoration: 'none' }}>
+              <Icon name="bolt" size={12} /> Manage
+            </Link>
           </div>
-          <Link to="/detectors" className="tj-btn" style={{ textDecoration: 'none' }}>
-            <Icon name="bolt" size={12} /> Manage
-          </Link>
-        </div>
-      </Card>
+        </Card>
+      </section>
     </div>
   )
 }
