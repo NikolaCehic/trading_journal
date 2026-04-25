@@ -27,6 +27,76 @@ import {
 
 export const Route = createFileRoute('/(app)/_layout/detectors/new')({ component: NewDetectorPage })
 
+// ── built-in starter templates ────────────────────────────────────────────────
+
+type Template = {
+  id: string
+  name: string
+  title: string
+  description: string
+  severity: 'info' | 'warning' | 'critical'
+  root: GroupNode
+}
+
+const BUILTIN_TEMPLATES: Template[] = [
+  {
+    id: 'losing_streak',
+    name: 'losing_streak',
+    title: 'Losing streak (3+)',
+    description: '3 losses in a row.',
+    severity: 'warning',
+    root: {
+      kind: 'group',
+      composition: 'all',
+      children: [
+        { kind: 'leaf', field: 'minLossStreak', operator: 'eq', value: '3' },
+      ],
+    },
+  },
+  {
+    id: 'big_loss',
+    name: 'big_loss',
+    title: 'Big loss',
+    description: 'Realized PnL worse than -$100.',
+    severity: 'warning',
+    root: {
+      kind: 'group',
+      composition: 'all',
+      children: [
+        { kind: 'leaf', field: 'pnl', operator: 'lt', value: '-100' },
+      ],
+    },
+  },
+  {
+    id: 'late_night_trades',
+    name: 'late_night_trades',
+    title: 'Late-night trades',
+    description: 'Opened at 23:00 UTC or later.',
+    severity: 'info',
+    root: {
+      kind: 'group',
+      composition: 'all',
+      children: [
+        { kind: 'leaf', field: 'hourOfDayUtc', operator: 'gte', value: '23' },
+      ],
+    },
+  },
+  {
+    id: 'long_hold',
+    name: 'long_hold',
+    title: 'Long hold',
+    description: 'Held longer than 4 hours.',
+    severity: 'info',
+    root: {
+      kind: 'group',
+      composition: 'all',
+      children: [
+        { kind: 'leaf', field: 'holdDurationMins', operator: 'gt', value: '240' },
+      ],
+    },
+  },
+]
+
 // ── LeafEditor ────────────────────────────────────────────────────────────────
 
 function LeafEditor({
@@ -460,6 +530,31 @@ function NewDetectorPage() {
         </div>
         <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginTop: 4 }}>
           Define a rule that flags trades matching specific conditions.
+        </div>
+      </div>
+
+      <div className="tj-card" style={{ padding: 16, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0 }}>Start from a template</h2>
+        <div style={{ fontSize: 12, color: 'var(--fg-subtle)', marginBottom: 12 }}>
+          Pick a starting predicate, then customize.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {BUILTIN_TEMPLATES.map(t => (
+            <button
+              type="button"
+              key={t.id}
+              className="tj-btn tj-btn-sm"
+              title={t.description}
+              onClick={() => {
+                setName(t.name)
+                setTitle(t.title)
+                setSeverity(t.severity)
+                setRoot(t.root)
+              }}
+            >
+              {t.title}
+            </button>
+          ))}
         </div>
       </div>
 
