@@ -86,7 +86,14 @@ function TradeDetailPage() {
       <PositionHeader bundle={bundle} positionId={positionId} />
       <MetricChipsRow bundle={bundle} />
       <AdherenceChipsRow bundle={bundle} />
-      <TabBar tab={tab} setTab={setTab} findingCount={bundle.findings.length} />
+      <TabBar
+        tab={tab}
+        setTab={setTab}
+        findingCount={bundle.findings.length}
+        hasNote={Boolean(bundle.note?.bodyMarkdown?.trim())}
+        tagCount={(bundle.tags?.setupTagIds?.length ?? 0) + (bundle.tags?.mistakeTagIds?.length ?? 0)}
+        hasCoach={false}
+      />
       <TabContent tab={tab} bundle={bundle} positionId={positionId} />
       <FillsTimeline bundle={bundle} />
     </div>
@@ -488,7 +495,16 @@ function MetricChipsRow({ bundle }: { bundle: TradeDetailBundle }) {
 
 // ── Tab Bar ──────────────────────────────────────────────────
 
-function TabBar({ tab, setTab, findingCount }: { tab: Tab; setTab: (t: Tab) => void; findingCount: number }) {
+function TabBar({
+  tab, setTab, findingCount, hasNote, tagCount, hasCoach,
+}: {
+  tab: Tab
+  setTab: (t: Tab) => void
+  findingCount: number
+  hasNote: boolean
+  tagCount: number
+  hasCoach: boolean
+}) {
   return (
     <div className="tj-card" style={{ overflow: 'hidden' }}>
       <div style={{ padding: '0 20px' }}>
@@ -500,6 +516,17 @@ function TabBar({ tab, setTab, findingCount }: { tab: Tab; setTab: (t: Tab) => v
                 <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 5px', background: 'var(--amber-weak)', color: '#fbbf24', borderRadius: 4 }}>
                   {findingCount}
                 </span>
+              )}
+              {t === 'Tags' && tagCount > 0 && (
+                <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 5px', background: 'var(--accent-weak, rgba(234, 88, 12, 0.15))', color: 'var(--accent)', borderRadius: 4 }}>
+                  {tagCount}
+                </span>
+              )}
+              {t === 'Notes' && hasNote && (
+                <span aria-label="Note saved" style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: 'var(--accent)' }} />
+              )}
+              {t === 'Coach' && hasCoach && (
+                <span aria-label="Coach narrative present" style={{ marginLeft: 6, display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: 'var(--accent)' }} />
               )}
             </button>
           ))}
