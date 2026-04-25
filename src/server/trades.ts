@@ -7,6 +7,7 @@ import { db } from '~/db/client'
 import { position, positionFill, finding } from '~/db/schema/derivation'
 import { fill as fillTable } from '~/db/schema/canonical'
 import { positionTag, tradeNote, positionReflection, setupTag, mistakeTag, tradePlan } from '~/db/schema/journal'
+import { rawImportRow } from '~/db/schema/ingestion'
 import { DERIVATION_VERSION } from '~/derivation/version'
 
 const listInput = z.object({
@@ -14,6 +15,8 @@ const listInput = z.object({
   instrument: z.enum(['all', 'spot', 'perp']).optional(),
   side: z.enum(['all', 'long', 'short']).optional(),
   pnl: z.enum(['all', 'winners', 'losers']).optional(),
+  flagged: z.boolean().optional(),
+  importId: z.string().min(1).optional(),
   from: z.string().optional(),   // yyyy-mm-dd
   to: z.string().optional(),
   search: z.string().optional(),
@@ -39,6 +42,8 @@ export type TradeListRow = {
   tagCount: number
   hasNote: boolean
   wasLiquidated: boolean
+  findingCount: number
+  topFindingSeverity: 'critical' | 'warning' | 'info' | null
 }
 
 export const getTradeList = createServerFn({ method: 'GET' })
@@ -57,14 +62,22 @@ export const getTradeList = createServerFn({ method: 'GET' })
     if (data.pnl === 'winners') where.push(sql`CAST(${position.realizedPnl} AS numeric) > 0`)
     if (data.pnl === 'losers')  where.push(sql`CAST(${position.realizedPnl} AS numeric) < 0`)
     if (data.search) where.push(ilike(position.symbol, `%${data.search}%`))
+    if (data.importId) {
+      where.push(sql`EXISTS (
+        SELECT 1 FROM ${positionFill} pf
+        JOIN ${fillTable} f ON f.id = pf.fill_id
+        JOIN ${rawImportRow} rr ON rr.id = f.raw_import_row_id
+        WHERE pf.position_id = ${position.id}
+          AND pf.derivation_version = ${DERIVATION_VERSION}
+          AND rr.import_id = ${data.importId}
+      )`)
+    }
 
     const rows = await db.select().from(position)
       .where(and(...where))
       .orderBy(desc(position.openedAt))
       .limit(data.limit)
       .offset(data.offset)
-
-    const total = await db.$count(position, and(...where))
 
     const ids = rows.map(r => r.id)
     const tags = ids.length ? await db.select({ positionId: positionTag.positionId }).from(positionTag).where(inArray(positionTag.positionId, ids)) : []
@@ -73,9 +86,43 @@ export const getTradeList = createServerFn({ method: 'GET' })
     for (const t of tags) tagMap.set(t.positionId, (tagMap.get(t.positionId) ?? 0) + 1)
     const noteSet = new Set(notes.map(n => n.positionId))
 
+    const findingsForUser = await db
+      .select({
+        severity: finding.severity,
+        referencedPositionIds: finding.referencedPositionIds,
+      })
+      .from(finding)
+      .where(and(
+        eq(finding.userId, userId),
+        eq(finding.derivationVersion, DERIVATION_VERSION),
+      ))
+
+    const severityRank = { critical: 0, warning: 1, info: 2 } as const
+    const findingMap = new Map<string, { count: number; top: 'critical' | 'warning' | 'info' }>()
+    for (const f of findingsForUser) {
+      const sev = f.severity as 'critical' | 'warning' | 'info'
+      for (const pid of f.referencedPositionIds ?? []) {
+        const existing = findingMap.get(pid)
+        if (!existing) {
+          findingMap.set(pid, { count: 1, top: sev })
+        } else {
+          existing.count += 1
+          if (severityRank[sev] < severityRank[existing.top]) existing.top = sev
+        }
+      }
+    }
+
+    const filteredRows = data.flagged
+      ? rows.filter(r => (findingMap.get(r.id)?.count ?? 0) > 0)
+      : rows
+
+    const total = data.flagged
+      ? filteredRows.length
+      : await db.$count(position, and(...where))
+
     return {
       total,
-      rows: rows.map(r => {
+      rows: filteredRows.map(r => {
         const realizedPnl = Number(r.realizedPnl)
         const notionalUsd = Number(r.notionalUsd)
         const holdSeconds = r.closedAt ? Math.round((r.closedAt.getTime() - r.openedAt.getTime()) / 1000) : null
@@ -90,6 +137,8 @@ export const getTradeList = createServerFn({ method: 'GET' })
           tagCount: tagMap.get(r.id) ?? 0,
           hasNote: noteSet.has(r.id),
           wasLiquidated: r.wasLiquidated,
+          findingCount: findingMap.get(r.id)?.count ?? 0,
+          topFindingSeverity: findingMap.get(r.id)?.top ?? null,
         }
       }),
     }
