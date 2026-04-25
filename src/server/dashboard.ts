@@ -11,10 +11,12 @@ import {
 import { positionFill } from '~/db/schema/derivation'
 import { fill } from '~/db/schema/canonical'
 import { positionTag } from '~/db/schema/journal'
+import { digestRun } from '~/db/schema/narrator'
 import { DERIVATION_VERSION } from '~/derivation/version'
 import { parseFilters, computeRange } from '~/lib/filters'
 import type { DashboardBundle, DashboardFilters, DashboardFinding, DashboardKpiDelta } from '~/domain/dashboard'
 import type { DetectorId } from '~/domain/finding'
+import { extractDigestSummary } from '~/narrator/extract'
 
 // PositionRow type inferred from schema
 type PositionRow = typeof position.$inferSelect
@@ -439,6 +441,35 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
       medianPositionSizeUsd: summaryRaw.medianPositionSizeUsd,
     }
 
+    // -----------------------------------------------------------------------
+    // 12. Latest composed digest summary (for AI Insight card)
+    // -----------------------------------------------------------------------
+    const latestDigest = await db
+      .select({
+        isoWeek: digestRun.isoWeek,
+        narrative: digestRun.narrative,
+        createdAt: digestRun.createdAt,
+      })
+      .from(digestRun)
+      .where(and(
+        eq(digestRun.userId, userId),
+        eq(digestRun.status, 'composed'),
+      ))
+      .orderBy(desc(digestRun.createdAt))
+      .limit(1)
+
+    const digestSummaryText = latestDigest[0]
+      ? extractDigestSummary(latestDigest[0].narrative as Parameters<typeof extractDigestSummary>[0])
+      : null
+
+    const latestDigestSummary = (latestDigest[0] && digestSummaryText)
+      ? {
+          isoWeek: latestDigest[0].isoWeek,
+          summary: digestSummaryText,
+          composedAt: latestDigest[0].createdAt,
+        }
+      : null
+
     return {
       filters,
       summary,
@@ -473,6 +504,7 @@ export const getDashboardBundle = createServerFn({ method: 'GET' })
         lastDerivationAt: null,
         derivationVersion: version,
       },
+      latestDigestSummary,
     }
   })
 

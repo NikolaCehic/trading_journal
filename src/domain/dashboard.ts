@@ -55,4 +55,9 @@ export type DashboardBundle = {
     lastDerivationAt: Date | null
     derivationVersion: number
   }
+  latestDigestSummary: {
+    isoWeek: string
+    summary: string
+    composedAt: Date
+  } | null
 }
