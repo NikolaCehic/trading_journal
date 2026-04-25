@@ -56,7 +56,7 @@ export function TopBar({ userEmail }: { userEmail: string }) {
       >
         <Icon name="gear" size={14} />
       </Link>
-      <a href="/api/auth/sign-out" className="tj-avatar-menu" style={{ textDecoration: 'none' }}>
+      <a href="/api/auth/sign-out" aria-label="Sign out" className="tj-avatar-menu" style={{ textDecoration: 'none' }}>
         <span style={{ color: 'var(--fg-muted)' }}>{userEmail}</span>
         <div className="tj-avatar">{initials}</div>
       </a>
