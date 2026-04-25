@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import { getTradeList, type TradeListRow } from '~/server/trades'
 import { toCsv, downloadFile } from '~/lib/csv'
 import { listTags, applyPositionTag } from '~/server/journal'
@@ -18,8 +19,14 @@ import {
 import { Icon } from '~/components/tj/Icon'
 import { Modal } from '~/components/tj/Modal'
 
+const tradesSearchSchema = z.object({
+  flagged: z.boolean().optional(),
+  importId: z.string().min(1).optional(),
+})
+
 export const Route = createFileRoute('/(app)/_layout/trades/')({
   component: TradesPage,
+  validateSearch: tradesSearchSchema,
 })
 
 type InstrumentFilter = 'all' | 'spot' | 'perp'
@@ -234,6 +241,7 @@ function BulkTagDialog({
 
 function TradesPage() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
 
   const [sym, setSym] = useState('')
   const [instr, setInstr] = useState<InstrumentFilter>('all')
@@ -255,7 +263,7 @@ function TradesPage() {
   }
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['tradeList', { sym, instr, side, pnlFilter }],
+    queryKey: ['tradeList', { sym, instr, side, pnlFilter, flagged: search.flagged, importId: search.importId }],
     queryFn: () =>
       getTradeList({
         data: {
@@ -263,6 +271,8 @@ function TradesPage() {
           instrument: instr,
           side: side,
           pnl: pnlFilter,
+          flagged: search.flagged,
+          importId: search.importId,
           limit: 200,
         },
       }),
@@ -392,7 +402,7 @@ function TradesPage() {
                 <th className="tj-th-num">Exit</th>
                 <th className="tj-th-num">P&amp;L $</th>
                 <th className="tj-th-num">P&amp;L %</th>
-                <th style={{ paddingRight: 20 }}>Tags</th>
+                <th scope="col" style={{ paddingRight: 20 }}>Tags / Findings</th>
               </tr>
             </thead>
             <tbody>
@@ -481,7 +491,7 @@ function TradesPage() {
               <th className="tj-th-num">Exit</th>
               <th className="tj-th-num">P&amp;L $</th>
               <th className="tj-th-num">P&amp;L %</th>
-              <th style={{ paddingRight: 20 }}>Tags</th>
+              <th scope="col" style={{ paddingRight: 20 }}>Tags / Findings</th>
             </tr>
           </thead>
           <tbody>
@@ -559,7 +569,27 @@ function TradesPage() {
                       : fmtPct(r.realizedPnlPct, { showPlus: true })}
                   </td>
                   <td style={{ paddingRight: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                      {r.findingCount > 0 && (
+                        <span
+                          title={`${r.findingCount} finding${r.findingCount === 1 ? '' : 's'}`}
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background:
+                              r.topFindingSeverity === 'critical' ? 'var(--pnl-down-weak)' :
+                              r.topFindingSeverity === 'warning' ? 'var(--amber-weak, rgba(251, 191, 36, 0.15))' :
+                              'var(--accent-weak, rgba(234, 88, 12, 0.15))',
+                            color:
+                              r.topFindingSeverity === 'critical' ? 'var(--pnl-down)' :
+                              r.topFindingSeverity === 'warning' ? '#fbbf24' :
+                              'var(--accent)',
+                          }}
+                        >
+                          ⚑ {r.findingCount}
+                        </span>
+                      )}
                       {r.tagCount > 0 && (
                         <span
                           className="tj-chip tj-chip-neutral"
@@ -640,6 +670,37 @@ function TradesPage() {
         </div>
       </div>
 
+      {/* ImportId notice */}
+      {search.importId && (
+        <div
+          className="tj-card"
+          role="status"
+          style={{
+            padding: 12,
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ fontSize: 13, color: 'var(--fg-subtle)' }}>
+            Filtered to a single import.
+          </div>
+          <button
+            type="button"
+            className="tj-btn tj-btn-sm"
+            onClick={() =>
+              navigate({
+                to: '/trades',
+                search: { ...search, importId: undefined },
+              })
+            }
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div
         style={{
@@ -706,6 +767,32 @@ function TradesPage() {
           ]}
           onChange={setPnlFilter}
         />
+        <div className="tj-seg" role="group" aria-label="Flagged trades filter">
+          <button
+            type="button"
+            className={!search.flagged ? 'is-active' : ''}
+            onClick={() =>
+              navigate({
+                to: '/trades',
+                search: { ...search, flagged: undefined },
+              })
+            }
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={search.flagged ? 'is-active' : ''}
+            onClick={() =>
+              navigate({
+                to: '/trades',
+                search: { ...search, flagged: true },
+              })
+            }
+          >
+            Flagged
+          </button>
+        </div>
         {filtersActive && (
           <>
             <div style={{ flex: 1 }} />
