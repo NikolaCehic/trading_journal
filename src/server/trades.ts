@@ -72,6 +72,14 @@ export const getTradeList = createServerFn({ method: 'GET' })
           AND rr.import_id = ${data.importId}
       )`)
     }
+    if (data.flagged) {
+      where.push(sql`EXISTS (
+        SELECT 1 FROM ${finding} f
+        WHERE f.user_id = ${userId}
+          AND f.derivation_version = ${DERIVATION_VERSION}
+          AND ${position.id} = ANY(f.referenced_position_ids)
+      )`)
+    }
 
     const rows = await db.select().from(position)
       .where(and(...where))
@@ -112,17 +120,11 @@ export const getTradeList = createServerFn({ method: 'GET' })
       }
     }
 
-    const filteredRows = data.flagged
-      ? rows.filter(r => (findingMap.get(r.id)?.count ?? 0) > 0)
-      : rows
-
-    const total = data.flagged
-      ? filteredRows.length
-      : await db.$count(position, and(...where))
+    const total = await db.$count(position, and(...where))
 
     return {
       total,
-      rows: filteredRows.map(r => {
+      rows: rows.map(r => {
         const realizedPnl = Number(r.realizedPnl)
         const notionalUsd = Number(r.notionalUsd)
         const holdSeconds = r.closedAt ? Math.round((r.closedAt.getTime() - r.openedAt.getTime()) / 1000) : null

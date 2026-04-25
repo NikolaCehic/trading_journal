@@ -54,7 +54,7 @@ function SettingsPage() {
       </div>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, marginTop: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Account
         </h2>
         <Card title="Account" subtitle="read-only">
@@ -80,7 +80,7 @@ function SettingsPage() {
       </section>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, marginTop: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Notifications
         </h2>
         <Card title="Digest" subtitle="weekly email">
@@ -97,7 +97,7 @@ function SettingsPage() {
       </section>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, marginTop: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Data
         </h2>
         <Card title="Export" subtitle="all your data, as JSON">
@@ -134,7 +134,7 @@ function SettingsPage() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, margin: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, marginTop: 0, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Detectors
         </h2>
         <Card title="Custom detectors" subtitle="define your own patterns">
