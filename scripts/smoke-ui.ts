@@ -129,6 +129,13 @@ async function testTradeDetail(page: Page) {
     return
   }
   await firstRowLink.click()
+  // SPA navigation: wait for the URL to actually become the detail route,
+  // then wait for ONE of the trade-detail-specific selectors to render
+  // before screenshotting / asserting. `networkidle` alone resolves too
+  // early — the URL changes but the new route's bundle / data query are
+  // still in flight.
+  await page.waitForURL(/\/trades\/pos_/, { timeout: 10_000 })
+  await page.waitForSelector('[data-testid="coach-card-root"], [data-testid="coach-card-hidden"]', { timeout: 20_000 }).catch(() => {})
   await page.waitForLoadState('networkidle')
   await shot(page, '03-trade-detail')
 
