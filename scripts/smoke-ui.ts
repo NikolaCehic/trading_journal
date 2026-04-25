@@ -93,6 +93,11 @@ async function testDashboard(page: Page) {
   // Findings sidebar
   const findingsVisible = await page.getByText(/finding/i).first().isVisible().catch(() => false)
   log('/dashboard', findingsVisible ? 'ok' : 'warn', `findings section visible=${findingsVisible}`)
+
+  // InsightCard renders for the demo user (has trades — either summary state or
+  // "first digest composes" placeholder).
+  const insightCard = await page.locator('[data-testid="insight-card-root"]').count()
+  log('/dashboard', insightCard > 0 ? 'ok' : 'warn', `insight card present: ${insightCard > 0}`)
 }
 
 async function testTrades(page: Page) {
@@ -129,6 +134,13 @@ async function testTradeDetail(page: Page) {
 
   const url = page.url()
   log('/trades/detail', url.includes('/trades/') && url !== `${BASE}/trades` ? 'ok' : 'error', `url=${url}`)
+
+  // CoachCard mounts in one of two states: visible (data-testid="coach-card-root")
+  // or hidden (data-testid="coach-card-hidden") when the LLM fallback fired.
+  const coachVisible = await page.locator('[data-testid="coach-card-root"]').count()
+  const coachHidden = await page.locator('[data-testid="coach-card-hidden"]').count()
+  log('/trades/detail', coachVisible + coachHidden > 0 ? 'ok' : 'warn',
+    `coach card mounted (visible=${coachVisible}, hidden=${coachHidden})`)
 }
 
 async function testPlans(page: Page) {
