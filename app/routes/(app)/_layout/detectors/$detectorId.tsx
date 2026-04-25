@@ -600,9 +600,9 @@ function DetectorDetailPage() {
       {/* Header card */}
       <div className="tj-card" style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', fontFamily: 'var(--font-mono)' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', fontFamily: 'var(--font-mono)', margin: 0 }}>
             {detector.name}
-          </div>
+          </h1>
           <SeverityChip severity={detector.severity} />
           <ToggleSwitch
             checked={detector.enabled}

@@ -627,11 +627,11 @@ function TradesPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div
-            style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}
+          <h1
+            style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)', margin: 0 }}
           >
             Trades
-          </div>
+          </h1>
           <div
             style={{
               fontSize: 12,

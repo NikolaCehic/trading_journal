@@ -276,9 +276,9 @@ function PositionHeader({ bundle, positionId }: { bundle: TradeDetailBundle; pos
     <div className="tj-card tj-card-pad" style={{ position: 'relative', display: 'flex', alignItems: 'stretch', gap: 24 }}>
       <div style={{ flex: '0 0 auto', paddingRight: 24, borderRight: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>
+          <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)', margin: 0 }}>
             {p.symbol}
-          </div>
+          </h1>
           <span className={`tj-symbol-badge${p.instrumentType === 'perp' ? ' perp' : ''}`}>
             {p.instrumentType === 'perp' ? 'PERP' : 'SPOT'}
           </span>

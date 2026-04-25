@@ -74,9 +74,9 @@ function PlanDetailPage() {
         style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', fontFamily: 'var(--font-mono)' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', fontFamily: 'var(--font-mono)', margin: 0 }}>
             {plan.symbol}
-          </div>
+          </h1>
           <SidePill side={plan.intendedSide} />
           {plan.archivedAt && (
             <span

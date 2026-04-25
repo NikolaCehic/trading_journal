@@ -586,9 +586,9 @@ function ImportPage() {
   return (
     <div className="tj-main">
       <div>
-        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)' }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: 'var(--fg)', margin: 0 }}>
           Import trades
-        </div>
+        </h1>
         <div style={{ fontSize: 13, color: 'var(--fg-subtle)', marginTop: 4 }}>
           Binance CSV exports or a Hyperliquid wallet address. We merge fills into positions.
         </div>
