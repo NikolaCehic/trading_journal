@@ -925,8 +925,12 @@ function FindingsTab({ findings }: { findings: TradeDetailBundle['findings'] }) 
 // ── Coach Tab ────────────────────────────────────────────────
 
 function CoachTab({ positionId, enabled }: { positionId: string; enabled: boolean }) {
+  // Same key as CoachCard so TanStack Query dedupes the request — the
+  // pre-Wave-3 review caught a queryKey drift (['coach',...] vs
+  // ['tradeCoach',...]) that would have fired the LLM twice for users who
+  // click into the Coach tab after the card already composed.
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['coach', positionId],
+    queryKey: ['tradeCoach', positionId],
     queryFn: () => getTradeCoach({ data: { positionId } }),
     enabled,
     staleTime: 15 * 60_000,

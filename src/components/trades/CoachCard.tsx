@@ -15,17 +15,19 @@ const GRADE_STYLE: Record<string, { bg: string; fg: string }> = {
 }
 
 export function CoachCard({ positionId, onReadFull }: CoachCardProps) {
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['tradeCoach', positionId],
     queryFn: () => getTradeCoach({ data: { positionId } }),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
   })
 
   if (data && data.failed) {
     return <span data-testid="coach-card-hidden" style={{ display: 'none' }} />
   }
 
-  if (isLoading || isFetching) {
+  // Skeleton only on initial load. Stale-while-revalidate keeps the existing
+  // render in place during background refetch (no flash on tab return).
+  if (isLoading) {
     return (
       <div className="tj-card" data-testid="coach-card-root" style={{ padding: 16, marginBottom: 16 }}>
         <Header />
